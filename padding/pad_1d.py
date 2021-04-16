@@ -124,7 +124,7 @@ def symmetric_pad_1d(x, pad_beg, pad_end, dim):
     def f(*args):  # helper function for _make_idx
         return _make_idx(slice(*args), dim=dim, ndim=x.ndim)
 
-    while pad_beg > 0 and pad_end > 0:
+    while pad_beg > 0 or pad_end > 0:
         u_length = side_length - pad_beg - pad_end  # side length of "original" tensor
         if pad_beg > 0:  # symmetric pad at the beginning
             offset = min(pad_beg, u_length)
@@ -132,13 +132,51 @@ def symmetric_pad_1d(x, pad_beg, pad_end, dim):
             pad_beg -= offset
         if pad_end > 0:  # symmetric pad at the end
             offset = min(pad_end, u_length)
+            end_comp = side_length - pad_end  # end complement
+            x[f(end_comp, end_comp + offset)] = x[f(end_comp - offset, end_comp)].flip((dim,))
+            pad_end -= offset
+    return x
+
+
+def circular_pad_1d(x, pad_beg, pad_end, dim):
+    side_length = x.shape[dim]  # side length of padded tensor at this dimension
+
+    def f(*args):  # helper function for _make_idx
+        return _make_idx(slice(*args), dim=dim, ndim=x.ndim)
+
+    while pad_beg > 0 or pad_end > 0:
+        u_length = side_length - pad_beg - pad_end  # side length of "original" tensor
+        if pad_beg > 0:  # symmetric pad at the beginning
+            offset = min(pad_beg, u_length)
+            end_comp = side_length - pad_end
+            x[f(pad_beg - offset, pad_beg)] = x[f(end_comp - offset, end_comp)]
+            pad_beg -= offset
+        if pad_end > 0:  # symmetric pad at the end
+            offset = min(pad_end, u_length)
+            end_comp = side_length - pad_end
+            x[f(end_comp, end_comp + offset)] = x[f(pad_beg, pad_beg + offset)]
+            pad_end -= offset
+    return x
+
+
+def reflect_pad_1d(x, pad_beg, pad_end, dim):
+    side_length = x.shape[dim]  # side length of padded tensor at this dimension
+
+    def f(*args):  # helper function for _make_idx
+        return _make_idx(slice(*args), dim=dim, ndim=x.ndim)
+
+    while pad_beg > 0 or pad_end > 0:
+        u_length = side_length - pad_beg - pad_end  # side length of "original" tensor
+        if pad_beg > 0:  # symmetric pad at the beginning
+            offset = min(pad_beg, u_length - 1)
+            x[f(pad_beg - offset, pad_beg)] = x[f(pad_beg + 1, pad_beg + 1 + offset)].flip((dim,))
+            pad_beg -= offset
+        if pad_end > 0:  # symmetric pad at the end
+            offset = min(pad_end, u_length - 1)
             center = side_length - pad_end
-            x[f(center, center + offset)] = x[f(center - offset, center)].flip((dim,))
+            x[f(center, center + offset)] = x[f(center - 1 - offset, center - 1)].flip((dim,))
             pad_end -= offset
     return x
 
 
 
-
-
-    return x
