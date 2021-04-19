@@ -67,6 +67,9 @@ The naming convention of padding modes is contested.
 ``"symmetric"`` - extends signal by *mirroring* samples. Also known as half-sample symmetric
     ``d c b a | a b c d | d c b a``
 
+``"antisymmetric"`` - extends signal by *mirroring* and *negating* samples. Also known as half-sample antisymmetric.
+    ``-d -c -b -a | a b c d | -d -c -b -a``
+
 ``"reflect"`` - signal is extended by *reflecting* samples. This mode is also known as whole-sample symmetric
     ``d c b | a b c d | c b a``
 
@@ -132,10 +135,8 @@ negative : bool
     Whether to flip signs (+, -) when flipping the signal. Default: False.
 
     This parameter only applies to ``symmetric`` mode.
-    When it is enabled,
-        ``symmetric``: ``-d -c -b -a | a b c d | -d -c -b -a``
-
-    Also known as half-sample anti-symmetric
+    When it is enabled, turns into half-sample antisymmetric mode:
+        ``antisymmetric``: ``-d -c -b -a | a b c d | -d -c -b -a``
 
 Returns
 -------
@@ -164,7 +165,7 @@ def _make_idx(*args, dim, ndim):
 
     Returns
     -------
-    tuple of slice
+    idx : tuple of slice
         Can be used to index np.ndarray and torch.Tensor
     """
     return (slice(None), ) * dim + (slice(*args), ) + (slice(None), ) * (ndim - dim - 1)
@@ -316,4 +317,18 @@ def odd_reflect_1d(x, idx, dim):
     pass
 
 
+def smooth_1d(x, idx, dim):
+    head, tail = idx[dim].start, idx[dim].stop
 
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
+
+    if head > 0:  # should pad before
+        dist = torch.arange(head, 0, -1).view([-1] + [1] * (x.ndim - dim - 1))
+        x[f(head)] = x[f(head, head + 1)] - dist * (x[f(head + 1, head + 2)] - x[f(head, head + 1)])
+
+    if tail < x.shape[dim]:  # should pad after
+        dist = torch.arange(1, x.shape[dim] - tail + 1).view([-1] + [1] * (x.ndim - dim - 1))
+        x[f(tail, None)] = x[f(tail - 1, tail)] + dist * (x[f(tail - 1, tail)] - x[f(tail - 2, tail - 1)])
+
+    return x
