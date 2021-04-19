@@ -198,7 +198,7 @@ def symmetric_pad_1d(x, idx, dim):
         offset = min(curr, length)
         if flip:
             x[f(curr - offset, curr)] = x[f(curr, curr + offset)].flip([dim]) if cache_flipped is None else \
-                                        cache_flipped[g(length - offset, length)]
+                                        cache_flipped[g(-offset, None)]
         else:
             x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
         curr -= offset
@@ -219,24 +219,47 @@ def symmetric_pad_1d(x, idx, dim):
     return x
 
 
-def reflect_pad_1d(x, pad_beg, pad_end, dim):
-    side_length = x.shape[dim]  # side length of padded tensor at this dimension
+def reflect_pad_1d(x, idx, dim):
+    head, tail = idx[dim].start, idx[dim].stop
 
-    def f(*args):  # helper function for _make_idx
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
+
+    def g(*args):  # fast empty idx creation to index flipped cache
         return _make_idx(*args, dim=dim, ndim=x.ndim)
 
-    while pad_beg > 0 or pad_end > 0:
-        u_length = side_length - pad_beg - pad_end  # side length of "original" tensor
-        if pad_beg > 0:  # symmetric pad at the beginning
-            offset = min(pad_beg, u_length - 1)
-            x[f(pad_beg - offset, pad_beg)] = x[f(pad_beg + 1, pad_beg + 1 + offset)].flip([dim])
-            pad_beg -= offset
-        if pad_end > 0:  # symmetric pad at the end
-            offset = min(pad_end, u_length - 1)
-            center = side_length - pad_end
-            x[f(center, center + offset)] = x[f(center - 1 - offset, center - 1)].flip([dim])
-            pad_end -= offset
+    length = tail - head  # length of ground truth tensor at dim
+    length_flipped = length - 2  # reflect discards 2 border values
+
+    if x.shape[dim] // length >= 2:
+        # every column is flipped at least once
+        # more advantageous to save as cache
+        cache_flipped = x[f(head + 1, tail - 1)].flip([dim])
+    else:
+        cache_flipped = None
+
+    curr = head  # should pad before
+    flip = True  # whether to use flipped array for padding
+    while curr > 0:
+        offset = min(curr, length_flipped if flip else length)
+        if flip:
+            x[f(curr - offset, curr)] = x[f(curr + 1, curr + 1 + offset)].flip([dim]) if cache_flipped is None else \
+                                        cache_flipped[g(-offset, None)]
+        else:
+            x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
+        curr -= offset
+        flip = not flip
+
+    curr = tail  # should pad after
+    flip = True
+    while curr < x.shape[dim]:
+        offset = min(x.shape[dim] - curr, length_flipped if flip else length)
+        if flip:
+            x[f(curr, curr + offset)] = x[f(curr - 1 - offset, curr - 1)].flip([dim]) if cache_flipped is None else \
+                                        cache_flipped[g(offset)]
+        else:
+            x[f(curr, curr + offset)] = x[f(head, head + offset)]
+        curr += offset
+        flip = not flip
+
     return x
-
-
-
