@@ -146,6 +146,30 @@ def replicate_pad_1d(x, idx, dim):
 
     if tail < x.shape[dim]:  # should pad after
         x[f(tail, None)] = x[f(tail - 1, tail)]
+
+    return x
+
+
+def circular_pad_1d(x, idx, dim):
+    head, tail = idx[dim].start, idx[dim].stop
+
+    def f(*args):  # fast idx modification
+        return modify_idx(*args, idx=idx, dim=dim)
+
+    length = tail - head  # length of ground truth tensor at dim
+
+    curr = head  # should pad before
+    while curr > 0:
+        offset = min(curr, length)
+        x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
+        curr -= offset
+
+    curr = tail  # should pad after
+    while curr < x.shape[dim]:
+        offset = min(x.shape[dim] - curr, length)
+        x[f(curr, curr + offset)] = x[f(head, head + offset)]
+        curr += offset
+
     return x
 
 
@@ -165,27 +189,6 @@ def symmetric_pad_1d(x, pad_beg, pad_end, dim):
             offset = min(pad_end, u_length)
             end_comp = side_length - pad_end  # end complement
             x[f(end_comp, end_comp + offset)] = x[f(end_comp - offset, end_comp)].flip((dim,))
-            pad_end -= offset
-    return x
-
-
-def circular_pad_1d(x, pad_beg, pad_end, dim):
-    side_length = x.shape[dim]  # side length of padded tensor at this dimension
-
-    def f(*args):  # helper function for _make_idx
-        return _make_idx(slice(*args), dim=dim, ndim=x.ndim)
-
-    while pad_beg > 0 or pad_end > 0:
-        u_length = side_length - pad_beg - pad_end  # side length of "original" tensor
-        if pad_beg > 0:  # symmetric pad at the beginning
-            offset = min(pad_beg, u_length)
-            end_comp = side_length - pad_end
-            x[f(pad_beg - offset, pad_beg)] = x[f(end_comp - offset, end_comp)]
-            pad_beg -= offset
-        if pad_end > 0:  # symmetric pad at the end
-            offset = min(pad_end, u_length)
-            end_comp = side_length - pad_end
-            x[f(end_comp, end_comp + offset)] = x[f(pad_beg, pad_beg + offset)]
             pad_end -= offset
     return x
 
