@@ -55,6 +55,9 @@ The naming convention of padding modes is contested.
 - Scipy's ``reflect`` is implemented as ``symmetric`` here;
     it has no counterpart in PyTorch.
 
+``"empty"`` - pads with undefined values
+    ``? ? ? ? | a b c d | ? ? ? ?`` where the empty values are from ``torch.empty``
+
 ``"constant"`` - pads with a constant value
     ``p p p p | a b c d | p p p p`` where ``p`` is supplied by ``padding_value`` argument.
 
@@ -73,25 +76,25 @@ The naming convention of padding modes is contested.
 ``"circular"`` - signal is treated as a periodic one
     ``a b c d | a b c d | a b c d``
 
-==========      =============   ===========     ==============================  =======
-torchimage      PyWavelets      Matlab          numpy.pad                       Scipy
-==========      =============   ===========     ==============================  =======
-symmetric       symmetric       sym, symh       symmetric                       reflect
-reflect         reflect         symw            reflect                         mirror
-todo            smooth          spd, sp1        N/A                             N/A
-replicate       constant        sp0             edge                            nearest
-zeros           zero            zpd             constant, cval=0                N/A
-constant        N/A             N/A             constant                        constant
-circular        periodic        ppd             wrap                            wrap
-todo            periodization   per             N/A                             N/A
-todo            antisymmetric   asym, asymh     N/A                             N/A
-todo            antireflect     asymw           reflect, reflect_type='odd'     N/A
-todo            N/A             N/A             symmetric, reflect_type='odd'   N/A
-?                                               linear_ramp                     N/A
-?                                               maximum, mean, median, minimum  N/A
-empty           N/A             N/A             empty                           N/A
-                                                <function>                      N/A
-==========      =============   ===========     ==============================  =======
+========================       =============   ===========     ==============================  =======
+torchimage                     PyWavelets      Matlab          numpy.pad                       Scipy
+========================       =============   ===========     ==============================  =======
+symmetric                      symmetric       sym, symh       symmetric                       reflect
+reflect                        reflect         symw            reflect                         mirror
+todo                           smooth          spd, sp1        N/A                             N/A
+replicate                      constant        sp0             edge                            nearest
+zeros                          zero            zpd             constant, cval=0                N/A
+constant                       N/A             N/A             constant                        constant
+circular                       periodic        ppd             wrap                            wrap
+todo                           periodization   per             N/A                             N/A
+symmetric, negative=True       antisymmetric   asym, asymh     N/A                             N/A
+todo                           antireflect     asymw           reflect, reflect_type='odd'     N/A
+todo                           N/A             N/A             symmetric, reflect_type='odd'   N/A
+?                                                              linear_ramp                     N/A
+?                                                              maximum, mean, median, minimum  N/A
+empty                          N/A             N/A             empty                           N/A
+                                                               <function>                      N/A
+========================       =============   ===========     ==============================  =======
 
 
 Parameters
@@ -120,6 +123,19 @@ idx : tuple of slice
 
 dim : int
     The dimension to pad.
+
+Other Parameters
+----------------
+These keyword arguments are used in some padding functions only.
+
+negative : bool
+    Whether to flip signs (+, -) when flipping the signal. Default: False.
+
+    This parameter only applies to ``symmetric`` mode.
+    When it is enabled,
+        ``symmetric``: ``-d -c -b -a | a b c d | -d -c -b -a``
+
+    Also known as half-sample anti-symmetric
 
 Returns
 -------
@@ -198,7 +214,7 @@ def circular_1d(x, idx, dim):
     return x
 
 
-def symmetric_1d(x, idx, dim):
+def symmetric_1d(x, idx, dim, negative=False):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
@@ -207,12 +223,15 @@ def symmetric_1d(x, idx, dim):
     def g(*args):  # fast empty idx creation to index flipped cache
         return _make_idx(*args, dim=dim, ndim=x.ndim)
 
+    def h(a):  # conditionally flip the values of a tensor across 0
+        return -a if negative else a
+
     length = tail - head  # length of ground truth tensor at dim
 
     if x.shape[dim] // length >= 2:
         # every column is flipped at least once
         # more advantageous to save as cache
-        cache_flipped = x[idx].flip([dim])
+        cache_flipped = h(x[idx].flip([dim]))
     else:
         cache_flipped = None
 
@@ -221,7 +240,7 @@ def symmetric_1d(x, idx, dim):
     while curr > 0:
         offset = min(curr, length)
         if flip:
-            x[f(curr - offset, curr)] = x[f(curr, curr + offset)].flip([dim]) if cache_flipped is None else \
+            x[f(curr - offset, curr)] = h(x[f(curr, curr + offset)].flip([dim])) if cache_flipped is None else \
                                         cache_flipped[g(-offset, None)]
         else:
             x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
@@ -233,7 +252,7 @@ def symmetric_1d(x, idx, dim):
     while curr < x.shape[dim]:
         offset = min(x.shape[dim] - curr, length)
         if flip:
-            x[f(curr, curr + offset)] = x[f(curr - offset, curr)].flip([dim]) if cache_flipped is None else \
+            x[f(curr, curr + offset)] = h(x[f(curr - offset, curr)].flip([dim])) if cache_flipped is None else \
                                         cache_flipped[g(offset)]
         else:
             x[f(curr, curr + offset)] = x[f(head, head + offset)]
@@ -289,7 +308,11 @@ def reflect_1d(x, idx, dim):
     return x
 
 
-def asymh_1d(x, idx, dim):
+def odd_symmetric_1d(x, idx, dim):
+    pass
+
+
+def odd_reflect_1d(x, idx, dim):
     pass
 
 
