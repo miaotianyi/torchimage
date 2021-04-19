@@ -106,9 +106,10 @@ x : torch.Tensor
 import torch
 
 
-def _make_idx(item, dim, ndim):
+def _make_idx(*args, dim, ndim):
     """
     Make an index that slices exactly along a specified dimension.
+    e.g. [:, ... :, slice(*args), :, ..., :]
 
     Parameters
     ----------
@@ -126,10 +127,10 @@ def _make_idx(item, dim, ndim):
     tuple of slice
         Can be used to index np.ndarray and torch.Tensor
     """
-    return (slice(None), ) * dim + (item, ) + (slice(None), ) * (ndim - dim - 1)
+    return (slice(None), ) * dim + (slice(*args), ) + (slice(None), ) * (ndim - dim - 1)
 
 
-def modify_idx(*args, idx, dim):
+def _modify_idx(*args, idx, dim):
     new_idx = list(idx)
     new_idx[dim] = slice(*args)
     return tuple(new_idx)
@@ -139,7 +140,7 @@ def replicate_pad_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
-        return modify_idx(*args, idx=idx, dim=dim)
+        return _modify_idx(*args, idx=idx, dim=dim)
 
     if head > 0:  # should pad before
         x[f(head)] = x[f(head, head + 1)]
@@ -154,7 +155,7 @@ def circular_pad_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
-        return modify_idx(*args, idx=idx, dim=dim)
+        return _modify_idx(*args, idx=idx, dim=dim)
 
     length = tail - head  # length of ground truth tensor at dim
 
@@ -173,23 +174,48 @@ def circular_pad_1d(x, idx, dim):
     return x
 
 
-def symmetric_pad_1d(x, pad_beg, pad_end, dim):
-    side_length = x.shape[dim]  # side length of padded tensor at this dimension
+def symmetric_pad_1d(x, idx, dim):
+    head, tail = idx[dim].start, idx[dim].stop
 
-    def f(*args):  # helper function for _make_idx
-        return _make_idx(slice(*args), dim=dim, ndim=x.ndim)
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
 
-    while pad_beg > 0 or pad_end > 0:
-        u_length = side_length - pad_beg - pad_end  # side length of "original" tensor
-        if pad_beg > 0:  # symmetric pad at the beginning
-            offset = min(pad_beg, u_length)
-            x[f(pad_beg - offset, pad_beg)] = x[f(pad_beg, pad_beg + offset)].flip((dim,))
-            pad_beg -= offset
-        if pad_end > 0:  # symmetric pad at the end
-            offset = min(pad_end, u_length)
-            end_comp = side_length - pad_end  # end complement
-            x[f(end_comp, end_comp + offset)] = x[f(end_comp - offset, end_comp)].flip((dim,))
-            pad_end -= offset
+    def g(*args):  # fast empty idx creation to index flipped cache
+        return _make_idx(*args, dim=dim, ndim=x.ndim)
+
+    length = tail - head  # length of ground truth tensor at dim
+
+    if x.shape[dim] // length >= 2:
+        # every column is flipped at least once
+        # more advantageous to save as cache
+        cache_flipped = x[idx].flip([dim])
+    else:
+        cache_flipped = None
+
+    curr = head  # should pad before
+    flip = True  # whether to use flipped array for padding
+    while curr > 0:
+        offset = min(curr, length)
+        if flip:
+            x[f(curr - offset, curr)] = x[f(curr, curr + offset)].flip([dim]) if cache_flipped is None else \
+                                        cache_flipped[g(length - offset, length)]
+        else:
+            x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
+        curr -= offset
+        flip = not flip
+
+    curr = tail  # should pad after
+    flip = True
+    while curr < x.shape[dim]:
+        offset = min(x.shape[dim] - curr, length)
+        if flip:
+            x[f(curr, curr + offset)] = x[f(curr - offset, curr)].flip([dim]) if cache_flipped is None else \
+                                        cache_flipped[g(offset)]
+        else:
+            x[f(curr, curr + offset)] = x[f(head, head + offset)]
+        curr += offset
+        flip = not flip
+
     return x
 
 
@@ -197,18 +223,18 @@ def reflect_pad_1d(x, pad_beg, pad_end, dim):
     side_length = x.shape[dim]  # side length of padded tensor at this dimension
 
     def f(*args):  # helper function for _make_idx
-        return _make_idx(slice(*args), dim=dim, ndim=x.ndim)
+        return _make_idx(*args, dim=dim, ndim=x.ndim)
 
     while pad_beg > 0 or pad_end > 0:
         u_length = side_length - pad_beg - pad_end  # side length of "original" tensor
         if pad_beg > 0:  # symmetric pad at the beginning
             offset = min(pad_beg, u_length - 1)
-            x[f(pad_beg - offset, pad_beg)] = x[f(pad_beg + 1, pad_beg + 1 + offset)].flip((dim,))
+            x[f(pad_beg - offset, pad_beg)] = x[f(pad_beg + 1, pad_beg + 1 + offset)].flip([dim])
             pad_beg -= offset
         if pad_end > 0:  # symmetric pad at the end
             offset = min(pad_end, u_length - 1)
             center = side_length - pad_end
-            x[f(center, center + offset)] = x[f(center - 1 - offset, center - 1)].flip((dim,))
+            x[f(center, center + offset)] = x[f(center - 1 - offset, center - 1)].flip([dim])
             pad_end -= offset
     return x
 
