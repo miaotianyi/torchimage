@@ -3,9 +3,12 @@ Pad a torch tensor along a certain dimension.
 
 All 1-d padding utility functions share the same set of arguments.
 
-**Important note**: To avoid re-copying the input tensor, these 1d padding
-utility functions only accept an empty tensor that has the same shape as
-the final padded output and copies the values of the input tensor at its center.
+**Important note**: This is an in-place function.
+
+To avoid re-copying the input tensor, these 1d padding utility functions
+only accept an empty tensor that has the same shape as the final padded output
+and copies the values of the input tensor at its center.
+
 The function will return its input x after modifying it.
 
 **Efficiency Warning**: Currently, PyTorch doesn't support returning negative-strided
@@ -19,7 +22,7 @@ Comparing with ``torch.nn.functional.pad``, we make the following improvements:
 
 1. Symmetric padding is added
 
-2. Higher-dimension padding
+2. Higher-dimension non-constant padding
     To the date of this release, PyTorch has not implemented reflect (ndim >= 3+2),
     replicate (ndim >= 4+2), and circular (ndim >= 4+2) for high-dimensional
     tensors (the +2 refers to the initial batch and channel dimensions).
@@ -27,7 +30,7 @@ Comparing with ``torch.nn.functional.pad``, we make the following improvements:
     This is achieved by decomposing n-dimensional padding to sequential padding
     along every dimension of interest.
 
-3. Larger padding size
+3. Wider padding size
     Padding modes reflect and circular will cause PyTorch to fail when padding size
     is greater than the tensor's shape at a certain dimension.
     i.e. Padding value causes wrapping around more than once.
@@ -40,7 +43,7 @@ We design this padding package with these principles:
     We also adjust the names of the arguments to be compatible with PyTorch
 
 
-Padding Mode
+Naming Convention
 ------------
 The naming convention of padding modes is contested.
 - Scipy's ``mirror`` is PyTorch's ``reflect``.
@@ -74,14 +77,22 @@ x : torch.Tensor
 
     See the important note above. Let ``u`` be the original tensor,
     then ``x`` is an empty tensor holding ``u`` values at center such that
-    ``x.shape[dim] == before + u.shape[dim] + after``. The empty values,
-    original ``u`` values, and empty values are also arranged as such.
+    ``x[idx] == u``
 
-pad_beg : int
-    The number of padding before the input values.
+idx : tuple of slice
+    Indices for the ground truth tensor located at the center of the
+    empty-padded tensor x.
 
-pad_end : int
-    The number of padding after the input values.
+    Has the same length as the number of dimensions ``len(idx) == x.ndim``.
+    Each element is a ``slice(beg, end, 1)`` where at dimension ``dim``,
+    ``x.shape[dim] - end`` is the amount of padding in the end and
+    ``beg`` is the amount of padding in the beginning.
+
+    Note that this has to be a tuple to properly index a high-dimensional
+    tensor.
+
+    This tuple of index slices prevents computing padding for empty values
+    at this dimension.
 
 dim : int
     The dimension to pad.
@@ -116,6 +127,26 @@ def _make_idx(item, dim, ndim):
         Can be used to index np.ndarray and torch.Tensor
     """
     return (slice(None), ) * dim + (item, ) + (slice(None), ) * (ndim - dim - 1)
+
+
+def modify_idx(*args, idx, dim):
+    new_idx = list(idx)
+    new_idx[dim] = slice(*args)
+    return tuple(new_idx)
+
+
+def replicate_pad_1d(x, idx, dim):
+    head, tail = idx[dim].start, idx[dim].stop
+
+    def f(*args):  # fast idx modification
+        return modify_idx(*args, idx=idx, dim=dim)
+
+    if head > 0:  # should pad before
+        x[f(head)] = x[f(head, head + 1)]
+
+    if tail < x.shape[dim]:  # should pad after
+        x[f(tail, None)] = x[f(tail - 1, tail)]
+    return x
 
 
 def symmetric_pad_1d(x, pad_beg, pad_end, dim):
