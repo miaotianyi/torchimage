@@ -79,25 +79,30 @@ The naming convention of padding modes is contested.
 ``"circular"`` - signal is treated as a periodic one
     ``a b c d | a b c d | a b c d``
 
-========================       =============   ===========     ==============================  =======
-torchimage                     PyWavelets      Matlab          numpy.pad                       Scipy
-========================       =============   ===========     ==============================  =======
-symmetric                      symmetric       sym, symh       symmetric                       reflect
-reflect                        reflect         symw            reflect                         mirror
-todo                           smooth          spd, sp1        N/A                             N/A
-replicate                      constant        sp0             edge                            nearest
-zeros                          zero            zpd             constant, cval=0                N/A
-constant                       N/A             N/A             constant                        constant
-circular                       periodic        ppd             wrap                            wrap
-todo                           periodization   per             N/A                             N/A
-symmetric, negative=True       antisymmetric   asym, asymh     N/A                             N/A
-todo                           antireflect     asymw           reflect, reflect_type='odd'     N/A
-todo                           N/A             N/A             symmetric, reflect_type='odd'   N/A
-?                                                              linear_ramp                     N/A
-?                                                              maximum, mean, median, minimum  N/A
-empty                          N/A             N/A             empty                           N/A
-                                                               <function>                      N/A
-========================       =============   ===========     ==============================  =======
+``"periodize"`` - same as circular, except the last element is replicated when signal length is odd.
+    ``a b c -> a b c c | a b c c | a b c c``
+    Note that it first extends the signal to an even length prior to using periodic boundary conditions
+
+
+======================       =============   ===========     ==============================  =======
+torchimage                   PyWavelets      Matlab          numpy.pad                       Scipy
+======================       =============   ===========     ==============================  =======
+symmetric                    symmetric       sym, symh       symmetric                       reflect
+reflect                      reflect         symw            reflect                         mirror
+smooth                       smooth          spd, sp1        N/A                             N/A
+replicate                    constant        sp0             edge                            nearest
+zeros                        zero            zpd             constant, cval=0                N/A
+constant                     N/A             N/A             constant                        constant
+circular                     periodic        ppd             wrap                            wrap
+periodize                    periodization   per             N/A                             N/A
+symmetric, negate=True       antisymmetric   asym, asymh     N/A                             N/A
+todo                         antireflect     asymw           reflect, reflect_type='odd'     N/A
+todo                         N/A             N/A             symmetric, reflect_type='odd'   N/A
+?                                                            linear_ramp                     N/A
+?                                                            maximum, mean, median, minimum  N/A
+empty                        N/A             N/A             empty                           N/A
+                                                             <function>                      N/A
+======================       =============   ===========     ==============================  =======
 
 
 Parameters
@@ -215,7 +220,27 @@ def circular_1d(x, idx, dim):
     return x
 
 
-def symmetric_1d(x, idx, dim, negative=False):
+def periodize_1d(x, idx, dim):
+    head, tail = idx[dim].start, idx[dim].stop
+
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
+
+    length = tail - head  # length of ground truth tensor at dim
+
+    if length % 2 == 0:
+        return circular_1d(x, idx, dim)
+    else:
+        # replicate one element at last
+        # note that in the outer scope, 1 extra padding space is always reserved
+        # for example, even with padding width (0, 0),
+        # (1, 2, 3) will still turn into (1, 2, 3, 3)
+        new_idx = _modify_idx(head, tail + 1, idx=idx, dim=dim)
+        x[f(tail, tail + 1)] = x[f(tail - 1, tail)]  # replicate
+        return circular_1d(x, new_idx, dim)
+
+
+def symmetric_1d(x, idx, dim, negate=False):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
@@ -225,7 +250,7 @@ def symmetric_1d(x, idx, dim, negative=False):
         return _make_idx(*args, dim=dim, ndim=x.ndim)
 
     def h(a):  # conditionally flip the values of a tensor across 0
-        return -a if negative else a
+        return -a if negate else a
 
     length = tail - head  # length of ground truth tensor at dim
 
@@ -314,7 +339,50 @@ def odd_symmetric_1d(x, idx, dim):
 
 
 def odd_reflect_1d(x, idx, dim):
-    pass
+    # unfinished
+    head, tail = idx[dim].start, idx[dim].stop
+
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
+
+    def g(*args):  # fast empty idx creation to index flipped cache
+        return _make_idx(*args, dim=dim, ndim=x.ndim)
+
+    length = tail - head  # length of ground truth tensor at dim
+    length_flipped = length - 2  # reflect discards 2 border values
+
+    if x.shape[dim] // length >= 2:
+        # every column is flipped at least once
+        # more advantageous to save as cache
+        cache_flipped = x[f(head + 1, tail - 1)].flip([dim])
+    else:
+        cache_flipped = None
+
+    curr = head  # should pad before
+    flip = True  # whether to use flipped array for padding
+    while curr > 0:
+        offset = min(curr, length_flipped if flip else length)
+        if flip:
+            x[f(curr - offset, curr)] = x[f(curr + 1, curr + 1 + offset)].flip([dim]) if cache_flipped is None else \
+                cache_flipped[g(-offset, None)]
+        else:
+            x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
+        curr -= offset
+        flip = not flip
+
+    curr = tail  # should pad after
+    flip = True
+    while curr < x.shape[dim]:
+        offset = min(x.shape[dim] - curr, length_flipped if flip else length)
+        if flip:
+            x[f(curr, curr + offset)] = x[f(curr - 1 - offset, curr - 1)].flip([dim]) if cache_flipped is None else \
+                cache_flipped[g(offset)]
+        else:
+            x[f(curr, curr + offset)] = x[f(head, head + offset)]
+        curr += offset
+        flip = not flip
+
+    return x
 
 
 def smooth_1d(x, idx, dim):
