@@ -42,6 +42,10 @@ We design this padding package with these principles:
     (For example, we do not implement zero and constant padding)
     We also adjust the names of the arguments to be compatible with PyTorch
 
+2. Versatility
+    We try to incorporate as many functionalities available in other packages
+    as possible. Specifically, we try to mimic the behavior of ``numpy.pad``
+
 
 Naming Convention
 ------------
@@ -68,6 +72,26 @@ The naming convention of padding modes is contested.
 
 ``"circular"`` - signal is treated as a periodic one
     ``a b c d | a b c d | a b c d``
+
+==========      =============   ===========     ==============================  =======
+torchimage      PyWavelets      Matlab          numpy.pad                       Scipy
+==========      =============   ===========     ==============================  =======
+symmetric       symmetric       sym, symh       symmetric                       reflect
+reflect         reflect         symw            reflect                         mirror
+todo            smooth          spd, sp1        N/A                             N/A
+replicate       constant        sp0             edge                            nearest
+zeros           zero            zpd             constant, cval=0                N/A
+constant        N/A             N/A             constant                        constant
+circular        periodic        ppd             wrap                            wrap
+todo            periodization   per             N/A                             N/A
+todo            antisymmetric   asym, asymh     N/A                             N/A
+todo            antireflect     asymw           reflect, reflect_type='odd'     N/A
+todo            N/A             N/A             symmetric, reflect_type='odd'   N/A
+?                                               linear_ramp                     N/A
+?                                               maximum, mean, median, minimum  N/A
+empty           N/A             N/A             empty                           N/A
+                                                <function>                      N/A
+==========      =============   ===========     ==============================  =======
 
 
 Parameters
@@ -136,7 +160,7 @@ def _modify_idx(*args, idx, dim):
     return tuple(new_idx)
 
 
-def replicate_pad_1d(x, idx, dim):
+def replicate_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
@@ -151,7 +175,7 @@ def replicate_pad_1d(x, idx, dim):
     return x
 
 
-def circular_pad_1d(x, idx, dim):
+def circular_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
@@ -174,7 +198,7 @@ def circular_pad_1d(x, idx, dim):
     return x
 
 
-def symmetric_pad_1d(x, idx, dim):
+def symmetric_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
@@ -219,7 +243,7 @@ def symmetric_pad_1d(x, idx, dim):
     return x
 
 
-def reflect_pad_1d(x, idx, dim):
+def reflect_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
@@ -263,3 +287,10 @@ def reflect_pad_1d(x, idx, dim):
         flip = not flip
 
     return x
+
+
+def asymh_1d(x, idx, dim):
+    pass
+
+
+
