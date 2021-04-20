@@ -84,25 +84,25 @@ The naming convention of padding modes is contested.
     Note that it first extends the signal to an even length prior to using periodic boundary conditions
 
 
-======================       =============   ===========     ==============================  =======
-torchimage                   PyWavelets      Matlab          numpy.pad                       Scipy
-======================       =============   ===========     ==============================  =======
-symmetric                    symmetric       sym, symh       symmetric                       reflect
-reflect                      reflect         symw            reflect                         mirror
-smooth                       smooth          spd, sp1        N/A                             N/A
-replicate                    constant        sp0             edge                            nearest
-zeros                        zero            zpd             constant, cval=0                N/A
-constant                     N/A             N/A             constant                        constant
-circular                     periodic        ppd             wrap                            wrap
-periodize                    periodization   per             N/A                             N/A
-symmetric, negate=True       antisymmetric   asym, asymh     N/A                             N/A
-todo                         antireflect     asymw           reflect, reflect_type='odd'     N/A
-todo                         N/A             N/A             symmetric, reflect_type='odd'   N/A
-?                                                            linear_ramp                     N/A
-?                                                            maximum, mean, median, minimum  N/A
-empty                        N/A             N/A             empty                           N/A
-                                                             <function>                      N/A
-======================       =============   ===========     ==============================  =======
+=============        =============   ===========     ==============================  =======
+torchimage           PyWavelets      Matlab          numpy.pad                       Scipy
+=============        =============   ===========     ==============================  =======
+symmetric            symmetric       sym, symh       symmetric                       reflect
+reflect              reflect         symw            reflect                         mirror
+smooth               smooth          spd, sp1        N/A                             N/A
+replicate            constant        sp0             edge                            nearest
+zeros                zero            zpd             constant, cval=0                N/A
+constant             N/A             N/A             constant                        constant
+circular             periodic        ppd             wrap                            wrap
+periodize            periodization   per             N/A                             N/A
+antisymmetric        antisymmetric   asym, asymh     N/A                             N/A
+odd_reflect          antireflect     asymw           reflect, reflect_type='odd'     N/A
+odd_symmetric        N/A             N/A             symmetric, reflect_type='odd'   N/A
+?                    N/A             N/A             linear_ramp                     N/A
+?                    N/A             N/A             maximum, mean, median, minimum  N/A
+empty                N/A             N/A             empty                           N/A
+<function>           N/A             N/A             <function>                      N/A
+=============        =============   ===========     ==============================  =======
 
 
 Parameters
@@ -207,15 +207,15 @@ def circular_1d(x, idx, dim):
 
     curr = head  # should pad before
     while curr > 0:
-        offset = min(curr, length)
-        x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
-        curr -= offset
+        chunk_size = min(curr, length)
+        x[f(curr - chunk_size, curr)] = x[f(tail - chunk_size, tail)]
+        curr -= chunk_size
 
     curr = tail  # should pad after
     while curr < x.shape[dim]:
-        offset = min(x.shape[dim] - curr, length)
-        x[f(curr, curr + offset)] = x[f(head, head + offset)]
-        curr += offset
+        chunk_size = min(x.shape[dim] - curr, length)
+        x[f(curr, curr + chunk_size)] = x[f(head, head + chunk_size)]
+        curr += chunk_size
 
     return x
 
@@ -264,25 +264,25 @@ def symmetric_1d(x, idx, dim, negate=False):
     curr = head  # should pad before
     flip = True  # whether to use flipped array for padding
     while curr > 0:
-        offset = min(curr, length)
+        chunk_size = min(curr, length)
         if flip:
-            x[f(curr - offset, curr)] = h(x[f(curr, curr + offset)].flip([dim])) if cache_flipped is None else \
-                                        cache_flipped[g(-offset, None)]
+            x[f(curr - chunk_size, curr)] = h(x[f(curr, curr + chunk_size)].flip([dim])) if cache_flipped is None else \
+                                        cache_flipped[g(-chunk_size, None)]
         else:
-            x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
-        curr -= offset
+            x[f(curr - chunk_size, curr)] = x[f(tail - chunk_size, tail)]
+        curr -= chunk_size
         flip = not flip
 
     curr = tail  # should pad after
     flip = True
     while curr < x.shape[dim]:
-        offset = min(x.shape[dim] - curr, length)
+        chunk_size = min(x.shape[dim] - curr, length)
         if flip:
-            x[f(curr, curr + offset)] = h(x[f(curr - offset, curr)].flip([dim])) if cache_flipped is None else \
-                                        cache_flipped[g(offset)]
+            x[f(curr, curr + chunk_size)] = h(x[f(curr - chunk_size, curr)].flip([dim])) if cache_flipped is None else \
+                                        cache_flipped[g(chunk_size)]
         else:
-            x[f(curr, curr + offset)] = x[f(head, head + offset)]
-        curr += offset
+            x[f(curr, curr + chunk_size)] = x[f(head, head + chunk_size)]
+        curr += chunk_size
         flip = not flip
 
     return x
@@ -310,78 +310,73 @@ def reflect_1d(x, idx, dim):
     curr = head  # should pad before
     flip = True  # whether to use flipped array for padding
     while curr > 0:
-        offset = min(curr, length_flipped if flip else length)
+        chunk_size = min(curr, length_flipped if flip else length)
         if flip:
-            x[f(curr - offset, curr)] = x[f(curr + 1, curr + 1 + offset)].flip([dim]) if cache_flipped is None else \
-                                        cache_flipped[g(-offset, None)]
+            x[f(curr - chunk_size, curr)] = x[f(curr + 1, curr + 1 + chunk_size)].flip([dim]) if cache_flipped is None else \
+                                        cache_flipped[g(-chunk_size, None)]
         else:
-            x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
-        curr -= offset
+            x[f(curr - chunk_size, curr)] = x[f(tail - chunk_size, tail)]
+        curr -= chunk_size
         flip = not flip
 
     curr = tail  # should pad after
     flip = True
     while curr < x.shape[dim]:
-        offset = min(x.shape[dim] - curr, length_flipped if flip else length)
+        chunk_size = min(x.shape[dim] - curr, length_flipped if flip else length)
         if flip:
-            x[f(curr, curr + offset)] = x[f(curr - 1 - offset, curr - 1)].flip([dim]) if cache_flipped is None else \
-                                        cache_flipped[g(offset)]
+            x[f(curr, curr + chunk_size)] = x[f(curr - 1 - chunk_size, curr - 1)].flip([dim]) if cache_flipped is None else \
+                                        cache_flipped[g(chunk_size)]
         else:
-            x[f(curr, curr + offset)] = x[f(head, head + offset)]
-        curr += offset
+            x[f(curr, curr + chunk_size)] = x[f(head, head + chunk_size)]
+        curr += chunk_size
         flip = not flip
 
     return x
 
 
 def odd_symmetric_1d(x, idx, dim):
-    pass
-
-
-def odd_reflect_1d(x, idx, dim):
-    # unfinished
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
         return _modify_idx(*args, idx=idx, dim=dim)
 
-    def g(*args):  # fast empty idx creation to index flipped cache
-        return _make_idx(*args, dim=dim, ndim=x.ndim)
-
+    # cache not implemented
     length = tail - head  # length of ground truth tensor at dim
-    length_flipped = length - 2  # reflect discards 2 border values
-
-    if x.shape[dim] // length >= 2:
-        # every column is flipped at least once
-        # more advantageous to save as cache
-        cache_flipped = x[f(head + 1, tail - 1)].flip([dim])
-    else:
-        cache_flipped = None
-
     curr = head  # should pad before
-    flip = True  # whether to use flipped array for padding
     while curr > 0:
-        offset = min(curr, length_flipped if flip else length)
-        if flip:
-            x[f(curr - offset, curr)] = x[f(curr + 1, curr + 1 + offset)].flip([dim]) if cache_flipped is None else \
-                cache_flipped[g(-offset, None)]
-        else:
-            x[f(curr - offset, curr)] = x[f(tail - offset, tail)]
-        curr -= offset
-        flip = not flip
+        chunk_size = min(curr, length)
+        x[f(curr - chunk_size, curr)] = 2 * x[f(curr, curr + 1)] - x[f(curr, curr + chunk_size)].flip([dim])
+        curr -= chunk_size
 
     curr = tail  # should pad after
-    flip = True
     while curr < x.shape[dim]:
-        offset = min(x.shape[dim] - curr, length_flipped if flip else length)
-        if flip:
-            x[f(curr, curr + offset)] = x[f(curr - 1 - offset, curr - 1)].flip([dim]) if cache_flipped is None else \
-                cache_flipped[g(offset)]
-        else:
-            x[f(curr, curr + offset)] = x[f(head, head + offset)]
-        curr += offset
-        flip = not flip
+        chunk_size = min(x.shape[dim] - curr, length)
+        x[f(curr, curr + chunk_size)] = 2 * x[f(curr - 1, curr)] - x[f(curr - chunk_size, curr)].flip([dim])
+        curr += chunk_size
+    return x
 
+
+def odd_reflect_1d(x, idx, dim):
+    head, tail = idx[dim].start, idx[dim].stop
+
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
+
+    # cache not implemented
+    length = tail - head  # length of ground truth tensor at dim
+    length_flipped = length - 1  # reflect discards 1 border value
+
+    curr = head  # should pad before
+    while curr > 0:
+        chunk_size = min(curr, length_flipped)
+        x[f(curr - chunk_size, curr)] = 2 * x[f(curr, curr + 1)] - x[f(curr + 1, curr + 1 + chunk_size)].flip([dim])
+        curr -= chunk_size
+
+    curr = tail  # should pad after
+    while curr < x.shape[dim]:
+        chunk_size = min(x.shape[dim] - curr, length_flipped)
+        x[f(curr, curr + chunk_size)] = 2 * x[f(curr - 1, curr)] - x[f(curr - 1 - chunk_size, curr - 1)].flip([dim])
+        curr += chunk_size
     return x
 
 
