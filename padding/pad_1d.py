@@ -87,19 +87,19 @@ The naming convention of padding modes is contested.
 =============        =============   ===========     ==============================  =======
 torchimage           PyWavelets      Matlab          numpy.pad                       Scipy
 =============        =============   ===========     ==============================  =======
-symmetric            symmetric       sym, symh       symmetric                       reflect
-reflect              reflect         symw            reflect                         mirror
-smooth               smooth          spd, sp1        N/A                             N/A
-replicate            constant        sp0             edge                            nearest
 zeros                zero            zpd             constant, cval=0                N/A
 constant             N/A             N/A             constant                        constant
+replicate            constant        sp0             edge                            nearest
+smooth               smooth          spd, sp1        N/A                             N/A
 circular             periodic        ppd             wrap                            wrap
 periodize            periodization   per             N/A                             N/A
+symmetric            symmetric       sym, symh       symmetric                       reflect
+reflect              reflect         symw            reflect                         mirror
 antisymmetric        antisymmetric   asym, asymh     N/A                             N/A
 odd_reflect          antireflect     asymw           reflect, reflect_type='odd'     N/A
 odd_symmetric        N/A             N/A             symmetric, reflect_type='odd'   N/A
-?                    N/A             N/A             linear_ramp                     N/A
-?                    N/A             N/A             maximum, mean, median, minimum  N/A
+todo                 N/A             N/A             linear_ramp                     N/A
+todo                 N/A             N/A             maximum, mean, median, minimum  N/A
 empty                N/A             N/A             empty                           N/A
 <function>           N/A             N/A             <function>                      N/A
 =============        =============   ===========     ==============================  =======
@@ -151,35 +151,7 @@ x : torch.Tensor
 
 import torch
 
-
-def _make_idx(*args, dim, ndim):
-    """
-    Make an index that slices exactly along a specified dimension.
-    e.g. [:, ... :, slice(*args), :, ..., :]
-
-    Parameters
-    ----------
-    item : slice
-        slice object at target axis
-
-    dim : int
-        target axis
-
-    ndim : int
-        total number of axes
-
-    Returns
-    -------
-    idx : tuple of slice
-        Can be used to index np.ndarray and torch.Tensor
-    """
-    return (slice(None), ) * dim + (slice(*args), ) + (slice(None), ) * (ndim - dim - 1)
-
-
-def _modify_idx(*args, idx, dim):
-    new_idx = list(idx)
-    new_idx[dim] = slice(*args)
-    return tuple(new_idx)
+from .utils import _make_idx, _modify_idx
 
 
 def replicate_1d(x, idx, dim):
@@ -387,11 +359,11 @@ def smooth_1d(x, idx, dim):
         return _modify_idx(*args, idx=idx, dim=dim)
 
     if head > 0:  # should pad before
-        dist = torch.arange(head, 0, -1).view([-1] + [1] * (x.ndim - dim - 1))
+        dist = torch.arange(head, 0, -1, dtype=x.dtype, device=x.device).view([-1] + [1] * (x.ndim - dim - 1))
         x[f(head)] = x[f(head, head + 1)] - dist * (x[f(head + 1, head + 2)] - x[f(head, head + 1)])
 
     if tail < x.shape[dim]:  # should pad after
-        dist = torch.arange(1, x.shape[dim] - tail + 1).view([-1] + [1] * (x.ndim - dim - 1))
+        dist = torch.arange(1, x.shape[dim] - tail + 1, dtype=x.dtype, device=x.device).view([-1] + [1] * (x.ndim - dim - 1))
         x[f(tail, None)] = x[f(tail - 1, tail)] + dist * (x[f(tail - 1, tail)] - x[f(tail - 2, tail - 1)])
 
     return x
