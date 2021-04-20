@@ -172,10 +172,13 @@ def replicate_1d(x, idx, dim):
 def circular_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
+    length = tail - head  # length of ground truth tensor at dim
+
+    if length == 1:  # equivalent to replicate when there is only 1 point
+        return replicate_1d(x, idx, dim)
+
     def f(*args):  # fast idx modification
         return _modify_idx(*args, idx=idx, dim=dim)
-
-    length = tail - head  # length of ground truth tensor at dim
 
     curr = head  # should pad before
     while curr > 0:
@@ -214,6 +217,10 @@ def periodize_1d(x, idx, dim):
 
 def symmetric_1d(x, idx, dim, negate=False):
     head, tail = idx[dim].start, idx[dim].stop
+    length = tail - head  # length of ground truth tensor at dim
+
+    if length == 1:  # equivalent to replicate when there is only 1 point
+        return replicate_1d(x, idx, dim)
 
     def f(*args):  # fast idx modification
         return _modify_idx(*args, idx=idx, dim=dim)
@@ -223,8 +230,6 @@ def symmetric_1d(x, idx, dim, negate=False):
 
     def h(a):  # conditionally flip the values of a tensor across 0
         return -a if negate else a
-
-    length = tail - head  # length of ground truth tensor at dim
 
     if x.shape[dim] // length >= 2:
         # every column is flipped at least once
@@ -262,6 +267,12 @@ def symmetric_1d(x, idx, dim, negate=False):
 
 def reflect_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
+    length = tail - head  # length of ground truth tensor at dim
+
+    if length == 1:  # equivalent to replicate when there is only 1 point
+        return replicate_1d(x, idx, dim)
+    if length == 2:  # equivalent to circular when there are only 2 points
+        return circular_1d(x, idx, dim)
 
     def f(*args):  # fast idx modification
         return _modify_idx(*args, idx=idx, dim=dim)
@@ -269,7 +280,6 @@ def reflect_1d(x, idx, dim):
     def g(*args):  # fast empty idx creation to index flipped cache
         return _make_idx(*args, dim=dim, ndim=x.ndim)
 
-    length = tail - head  # length of ground truth tensor at dim
     length_flipped = length - 2  # reflect discards 2 border values
 
     if x.shape[dim] // length >= 2:
@@ -302,7 +312,6 @@ def reflect_1d(x, idx, dim):
             x[f(curr, curr + chunk_size)] = x[f(head, head + chunk_size)]
         curr += chunk_size
         flip = not flip
-
     return x
 
 
