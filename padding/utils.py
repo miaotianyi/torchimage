@@ -65,3 +65,50 @@ def _check_padding(x, pad):
     assert len(pad) // 2 <= x.ndim
     assert all(hasattr(p, "__index__") and p >= 0 for p in pad)  # is nonnegative int
 
+
+def pad_width_format(pad, source="numpy", target="torch", ndim=None):
+    """
+    Convert between 2 padding width formats.
+
+    This function converts ``pad`` from ``source`` format to ``target`` format.
+
+    Padding width refers to the number of padded elements before and after
+    the original tensor at a certain axis. Numpy and PyTorch have different
+    formats to specify the padding widths. Because Numpy works with n-dimensional
+    arrays while PyTorch more frequently works with (N, C, [D, ]H, W) data tensors.
+    In the latter case, starting from the last dimension seems more intuitive.
+
+    Numpy padding width format is
+    ``((before_0, after_0), (before_1, after_1), ..., (before_{n-1}, after_{n-1}))``.
+
+    PyTorch padding format is
+    ``(before_{n-1}, after_{n-1}, before_{n-2}, after_{n-2}, ..., before_{dim}, after_{dim})``,
+    such that before after ``dim`` is not padded.
+
+    Parameters
+    ----------
+    pad : tuple of int, or tuple of tuple of int
+        the input padding width format to convert
+
+    source, target : str
+        Format specification for padding width. Either "numpy" or "torch".
+
+    ndim : int
+        Number of dimensions in the tensor of interest.
+
+        Only used when converting from torch to numpy format.
+    """
+    if source == target:
+        return pad
+
+    if source == "numpy" and target == "torch":
+        pad = tuple(tuple(x) for x in pad)
+        return sum(pad[::-1], start=())
+    elif source == "torch" and target == "numpy":
+        pad = tuple(pad)
+        assert ndim is not None, "ndim not supplied for pad width conversion from torch to numpy"
+        ndim_padded = len(pad) // 2
+        return ((0, 0), ) * (ndim - ndim_padded) + tuple(pad[i:i+2] for i in range(0, len(pad), 2))[::-1]
+    else:
+        raise ValueError(f"Unsupported pad width format conversion from {source=} to {target=}")
+
