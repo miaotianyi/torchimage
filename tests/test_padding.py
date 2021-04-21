@@ -1,5 +1,6 @@
 import unittest
 from padding import pad
+from padding.utils import pad_width_format
 import numpy as np
 import torch
 import pywt
@@ -29,6 +30,22 @@ class PaddingTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.n_trials = 20
 
+    def assertArrayEqual(self, a, b, tol=1e-8, msg=None):
+        self.assertLess(np.abs(a - b).sum(), tol, msg=msg)
+
+    def test_width_conversion(self):
+        result = pad_width_format(((1, 2), (3, 4)), source="numpy", target="torch")
+        expected = (3, 4, 1, 2)
+        self.assertEqual(result, expected)
+
+        result = pad_width_format((3, 4, 1, 2), source="torch", target="numpy", ndim=2)
+        expected = ((1, 2), (3, 4))
+        self.assertEqual(result, expected)
+
+        result = pad_width_format((3, 4, 1, 2), source="torch", target="numpy", ndim=3)
+        expected = ((0, 0), (1, 2), (3, 4))
+        self.assertEqual(result, expected)
+
     def test_const(self):
         for i in range(self.n_trials):
             arr_np, arr_ti, pad_np, pad_ti = get_data()
@@ -36,7 +53,6 @@ class PaddingTestCase(unittest.TestCase):
             res_ti = pad(arr_ti, pad_ti, mode="constant", value=3)
             self.assertLess(np.abs(res_ti.numpy() - res_np).sum(), 1e-8)
 
-    @unittest.skip
     def test_keyword_modes(self):
         for kw_ti, kw_np in ti_np_modes:
             for i in range(self.n_trials):
@@ -71,6 +87,7 @@ class PaddingTestCase(unittest.TestCase):
         print(res_wt)
         self.assertLess(np.abs(res_ti - res_np).sum(), 1e-8)
 
+    @unittest.skip
     def test_circular_3(self):
         # Warning: this is a known bug in np.pad
         # notice how there's a repeated 1 2 1 2 in the middle of numpy's result
@@ -82,6 +99,20 @@ class PaddingTestCase(unittest.TestCase):
         print(f"torchimage result: {res_ti}")
         # numpy result: [1 2 0 1 2 0 1 2 1 2 0 1 2 0]
         # torchimage result: [1 2 0 1 2 0 1 2 0 1 2 0 1 2]
+
+    @unittest.expectedFailure
+    def test_symmetric(self):
+        data_np = np.arange(4).reshape([2, 2])
+        data_torch = torch.from_numpy(data_np)
+
+        # this is a known bug for numpy pad symmetric
+        pad_torch = (1, 8)
+        pad_np = pad_width_format(pad_torch, source="torch", target="numpy", ndim=data_torch.ndim)
+        res_np = np.pad(data_np, pad_np, mode="symmetric")
+        res_torch = pad(data_torch, pad_torch, mode="symmetric").numpy()
+        print(res_np)
+        print(res_torch)
+        self.assertArrayEqual(res_np, res_torch)
 
 
 if __name__ == '__main__':

@@ -136,12 +136,16 @@ Other Parameters
 ----------------
 These keyword arguments are used in some padding functions only.
 
-negative : bool
+negate : bool
     Whether to flip signs (+, -) when flipping the signal. Default: False.
 
     This parameter only applies to ``symmetric`` mode.
     When it is enabled, turns into half-sample antisymmetric mode:
         ``antisymmetric``: ``-d -c -b -a | a b c d | -d -c -b -a``
+
+
+before, after : float
+    Before and after values for a linear ramp. Default: 0
 
 Returns
 -------
@@ -208,6 +212,7 @@ def periodize_1d(x, idx, dim):
     else:
         # replicate one element at last
         # note that in the outer scope, 1 extra padding space is always reserved
+        # regardless of padding width
         # for example, even with padding width (0, 0),
         # (1, 2, 3) will still turn into (1, 2, 3, 3)
         new_idx = _modify_idx(head, tail + 1, idx=idx, dim=dim)
@@ -376,3 +381,7 @@ def smooth_1d(x, idx, dim):
         x[f(tail, None)] = x[f(tail - 1, tail)] + dist * (x[f(tail - 1, tail)] - x[f(tail - 2, tail - 1)])
 
     return x
+
+
+def linear_ramp_1d(x, idx, dim, end_before, end_after):
+    pass

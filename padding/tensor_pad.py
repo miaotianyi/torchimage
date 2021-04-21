@@ -28,13 +28,19 @@ def pad(x: torch.Tensor, pad, mode, value=0):
         Original tensor to be padded
 
     pad : tuple of int
-        Number of padding like ``(pad_left, pad_right, pad_top, pad_bottom)``.
+        Padding width specification.
 
-        Essentially, it's (pad beg axis -1, pad end axis -1, pad beg axis -2,
-        pad end axis -2, ...)
+        It must be a tuple like
+        ``(before_{n-1}, after_{n-1}, before_{n-2}, after_{n-2}, ..., before_{dim}, after_{dim})``,
+        such that dimensions before ``dim`` is not padded.
+
+        This is consistent with PyTorch's padding width specification.
+        However, unlike ``np.pad``, this argument does *not* allow broadcasting
+        ``(before, after)`` to all dimensions, since this would have been
+        confused with ``(before_{n-1}, after_{n-1})``.
 
     mode : str or <function>
-        Padding mode or padding function
+        Padding mode or padding function.
 
     value : float
         Constant value for padding if mode is ``constant``.
