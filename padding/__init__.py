@@ -13,7 +13,7 @@ We design this padding package with these principles:
     as possible. Specifically, we try to reproduce the behavior of ``numpy.pad``,
     MatLab dwtmode, and PyWavelet signal extension modes.
 
-Comparing with ``torch.nn.functional.pad``, we make the following improvements:
+Comparing with ``torch.nn.functional.pad``, we make the following modifcations:
 
 1. Symmetric padding is added
 
@@ -22,24 +22,34 @@ Comparing with ``torch.nn.functional.pad``, we make the following improvements:
     replicate (ndim >= 4+2), and circular (ndim >= 4+2) for high-dimensional
     tensors (the +2 refers to the initial batch and channel dimensions).
 
-    This is achieved by decomposing n-dimensional padding to sequential padding
-    along every dimension of interest.
+    We achieve n-dimensional padding by sequentially applying 1-dimensional
+    padding from the first axis (dim 0) to the last (dim n-1). In some cases
+    (such as constant padding with different values before and after an axis)
+    where different orders of applying 1d padding can change the final result,
+    we follow numpy's convention going from the first to the last dimension.
 
 3. Wider padding size
     Padding modes reflect and circular will cause PyTorch to fail when padding size
     is greater than the tensor's shape at a certain dimension.
     i.e. Padding value causes wrapping around more than once.
 
-Comparing with ``numpy.pad``, we make the following improvements:
+Comparing with ``numpy.pad``, we make the following modifcations:
 
 1. Bug fixes for wider padding
     For modes such as symmetric and circular, numpy padding doesn't make
     proper repetition. For example, notice how numpy fails to repeat or
     flip the signal [0, 1] in on the right.
-    >>> np.pad([0, 1], (1, 10), mode="wrap")
+    >>> import numpy as np
+    >>> np.pad([0, 1],(1, 10),mode="wrap")
     array([1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1])
-    >>> np.pad([0, 1], (1, 10), mode="symmetric")
+    >>> np.pad([0, 1],(1, 10),mode="symmetric")
     array([0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1])
+
+    The same bug has been observed for antisymmetric as well.
+    After reading the source code, I believe numpy's error comes from
+    extending the padding for directions (before and after),
+    which breaks the cycle of the original signal if before and after
+    are relatively prime.
 
 Padding Modes
 -------------
@@ -47,7 +57,7 @@ Padding Modes
     ``? ? ? ? | a b c d | ? ? ? ?`` where the empty values are from ``torch.empty``
 
 ``"constant"`` - pads with a constant value
-    ``p p p p | a b c d | p p p p`` where ``p`` is supplied by ``value`` argument.
+    ``p p p p | a b c d | p p p p`` where ``p`` is supplied by ``constant_value`` argument.
 
 ``"zeros"`` - pads with 0; a special case of constant padding
     ``0 0 0 0 | a b c d | 0 0 0 0``
@@ -70,6 +80,18 @@ Padding Modes
 ``"periodize"`` - same as circular, except the last element is replicated when signal length is odd.
     ``a b c -> a b c c | a b c c | a b c c``
     Note that it first extends the signal to an even length prior to using periodic boundary conditions
+
+``"odd_symmetric"`` - extend the signal by a point-reflection across a hypothetical midpoint between the edge
+    and the symmetrically reflected edge.
+    ``2a-d 2a-c 2a-b a | a b c d | d 2d-c 2d-b 2d-a | 2d-a 2(2d-a)-(2d-b) 2(2d-a)-(2d-c) 2(2d-a)-d``
+
+``"odd_reflect"`` - extend the signal by a point-reflection across the edge element
+    ``2a-d 2a-c 2a-b | a b c d | 2d-c 2d-b 2d-a | 2(2d-a)-(2d-b) 2(2d-a)-(2d-c) 2(2d-a)-d``
+    Also known has whole-sample antisymmetric.
+
+``<function>`` - extend the signal with a customized function
+    The function should have signature ``pad_func(x, idx, dim, **kwargs)``, like other functions
+    in ``pad_1d``
 
 
 =============        =============   ===========     ==============================  =======

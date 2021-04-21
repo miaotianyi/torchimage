@@ -6,14 +6,16 @@ import torch
 import pywt
 
 
-def get_data():
+def get_random_data():
     ndim = np.random.randint(1, 5)
-    shape = np.random.randint(1, 3, size=ndim)
+    shape = np.random.randint(1, 7, size=ndim)
 
-    ndim_padded = np.random.randint(0, ndim)
-    pad_ti = np.random.randint(0, 30, size=ndim_padded * 2)
-    pad_np = np.vstack([np.zeros([ndim - ndim_padded, 2], dtype=int), pad_ti.reshape(-1, 2)[::-1]]).tolist()
-    pad_ti = tuple(pad_ti.tolist())
+    # ndim_padded = np.random.randint(0, ndim)
+    ndim_padded = ndim
+
+    pad_ti = tuple(np.random.randint(0, 30, size=ndim_padded * 2).tolist())
+    pad_np = pad_width_format(pad_ti, source="torch", target="numpy", ndim=ndim)
+
     arr_np = np.random.rand(*shape) * 100
     arr_ti = torch.from_numpy(arr_np)
     return arr_np, arr_ti, pad_np, pad_ti
@@ -28,7 +30,7 @@ ti_np_modes = [
 
 class PaddingTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        self.n_trials = 20
+        self.n_trials = 50
 
     def assertArrayEqual(self, a, b, tol=1e-8, msg=None):
         self.assertLess(np.abs(a - b).sum(), tol, msg=msg)
@@ -50,13 +52,13 @@ class PaddingTestCase(unittest.TestCase):
         for i in range(self.n_trials):
             arr_np, arr_ti, pad_np, pad_ti = get_data()
             res_np = np.pad(arr_np, pad_np, mode="constant", constant_values=3)
-            res_ti = pad(arr_ti, pad_ti, mode="constant", value=3)
+            res_ti = pad(arr_ti, pad_ti, mode="constant", constant_value=3)
             self.assertLess(np.abs(res_ti.numpy() - res_np).sum(), 1e-8)
 
     def test_keyword_modes(self):
         for kw_ti, kw_np in ti_np_modes:
             for i in range(self.n_trials):
-                arr_np, arr_ti, pad_np, pad_ti = get_data()
+                arr_np, arr_ti, pad_np, pad_ti = get_random_data()
                 res_np = np.pad(arr_np, pad_np, mode=kw_np)
                 res_ti = pad(arr_ti, pad_ti, mode=kw_ti).numpy()
                 with self.subTest(mode=kw_ti, old_shape=arr_np.shape, new_shape=res_np.shape, padding=pad_np, res_np=res_np, res_ti=res_ti):
@@ -100,9 +102,9 @@ class PaddingTestCase(unittest.TestCase):
         # numpy result: [1 2 0 1 2 0 1 2 1 2 0 1 2 0]
         # torchimage result: [1 2 0 1 2 0 1 2 0 1 2 0 1 2]
 
-    @unittest.expectedFailure
+    @unittest.skip
     def test_symmetric(self):
-        data_np = np.arange(4).reshape([2, 2])
+        data_np = np.arange(2)
         data_torch = torch.from_numpy(data_np)
 
         # this is a known bug for numpy pad symmetric
@@ -110,9 +112,68 @@ class PaddingTestCase(unittest.TestCase):
         pad_np = pad_width_format(pad_torch, source="torch", target="numpy", ndim=data_torch.ndim)
         res_np = np.pad(data_np, pad_np, mode="symmetric")
         res_torch = pad(data_torch, pad_torch, mode="symmetric").numpy()
-        print(res_np)
-        print(res_torch)
+        # print(res_np)
+        # print(res_torch)
         self.assertArrayEqual(res_np, res_torch)
+
+    @unittest.skip
+    def test_antisymmetric(self):
+        for i in range(self.n_trials):
+            print(i)
+            arr_np, arr_ti, pad_np, pad_ti = get_random_data()
+            print(f"{arr_np.shape=}, {pad_np=}")
+            print("getting pywt result")
+            try:
+                res_pywt = pywt.pad(arr_np, pad_np, mode="antisymmetric")
+            except ValueError:
+                continue
+            print("getting torch image result")
+            res_ti = pad(arr_ti, pad_ti, mode="antisymmetric").numpy()
+            with self.subTest(old_shape=arr_np.shape, new_shape=res_ti.shape, pad=pad_np):
+                self.assertArrayEqual(res_ti, res_pywt)
+
+    @unittest.skip
+    def test_antisymmetric_2(self):
+        # this is also doomed to fail
+        padding = (1, 8)
+        a = [1, 2]
+        res_pywt = pywt.pad(a, padding, mode="antisymmetric")
+        res_ti = pad(torch.tensor(a), padding, mode="antisymmetric").numpy()
+        print(res_pywt)
+        print(res_ti)
+        self.assertArrayEqual(res_pywt, res_ti)
+        # f = lambda **kwargs: kwargs
+        # f(old_shape=(6, 1, 6), new_shape = (56, 14, 31), pad = ((24, 26), (11, 2), (24, 1))),
+        # f(old_shape=(4, 4, 4), new_shape = (24, 39, 24), pad = ((3, 17), (28, 7), (6, 14))),
+        # f(old_shape=(6,), new_shape = (34,), pad = ((26, 2),)),
+        # f(old_shape=(5, 2, 5), new_shape = (36, 50, 56), pad = ((27, 4), (22, 26), (24, 27)))
+
+    @unittest.skip
+    def test_periodize(self):
+        for i in range(self.n_trials):
+            print(i)
+            arr_np, arr_ti, pad_np, pad_ti = get_random_data()
+            print(f"{arr_np.shape=}, {pad_np=}")
+            print("getting pywt result")
+            try:
+                res_pywt = pywt.pad(arr_np, pad_np, mode="periodization")
+            except ValueError:
+                continue
+            print("getting torch image result")
+            res_ti = pad(arr_ti, pad_ti, mode="periodize").numpy()
+            with self.subTest(old_shape=arr_np.shape, new_shape=res_ti.shape, pad=pad_np):
+                self.assertArrayEqual(res_ti, res_pywt)
+
+    @unittest.skip
+    def test_periodize_2(self):
+        # it's hard to test periodize now that circular is problematic
+        padding = (0, 8)
+        a = [1, 2, 3]
+        res_pywt = pywt.pad(a, padding, mode="periodization")
+        res_ti = pad(torch.tensor(a), padding, mode="periodize").numpy()
+        print(res_pywt)
+        print(res_ti)
+        self.assertArrayEqual(res_pywt, res_ti)
 
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@ _padding_function_dict = {
 }
 
 
-def pad(x: torch.Tensor, pad, mode, value=0):
+def pad(x: torch.Tensor, pad, mode, constant_value=0):
     """
     Pad an n-dimensional tensor according to a user-specified mode.
 
@@ -42,8 +42,11 @@ def pad(x: torch.Tensor, pad, mode, value=0):
     mode : str or <function>
         Padding mode or padding function.
 
-    value : float
+    constant_value : float, tuple of float
         Constant value for padding if mode is ``constant``.
+
+        If it's a tuple of float, it must follow the format of torch padding width.
+        e.g. ``(before_{n-1}, after_{n-1}, before_{n-2}, after_{n-2}, ..., before_{dim}, after_{dim})``
 
     Returns
     -------
@@ -54,7 +57,7 @@ def pad(x: torch.Tensor, pad, mode, value=0):
     if mode == "zeros":
         return F.pad(x, pad=pad, mode="constant", value=0)
     if mode == "constant":
-        return F.pad(x, pad=pad, mode=mode, value=value)
+        return F.pad(x, pad=pad, mode=mode, value=constant_value)
 
     # input validation
     _check_padding(x, pad)
