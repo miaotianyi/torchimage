@@ -57,9 +57,12 @@ negate : bool
     When it is enabled, turns into half-sample antisymmetric mode:
         ``antisymmetric``: ``-d -c -b -a | a b c d | -d -c -b -a``
 
-
 before, after : float
-    Before and after values for a linear ramp. Default: 0
+    For ``linear_ramp_1d``, they are the new edge values for the padded tensor. Default: 0
+
+    For ``constant_1d``, they are the constants used for padding before and after ground truth.
+
+    For ``stat_1d``, they are the todo
 
 Returns
 -------
@@ -286,16 +289,53 @@ def smooth_1d(x, idx, dim):
     def f(*args):  # fast idx modification
         return _modify_idx(*args, idx=idx, dim=dim)
 
+    def _arange(start, end, step):  # fast arange
+        return torch.arange(start, end, step, dtype=x.dtype, device=x.device).view([-1] + [1] * (x.ndim - dim - 1))
+
     if head > 0:  # should pad before
-        dist = torch.arange(head, 0, -1, dtype=x.dtype, device=x.device).view([-1] + [1] * (x.ndim - dim - 1))
+        dist = _arange(head, 0, -1)  # distance from head
         x[f(head)] = x[f(head, head + 1)] - dist * (x[f(head + 1, head + 2)] - x[f(head, head + 1)])
 
     if tail < x.shape[dim]:  # should pad after
-        dist = torch.arange(1, x.shape[dim] - tail + 1, dtype=x.dtype, device=x.device).view([-1] + [1] * (x.ndim - dim - 1))
+        dist = _arange(1, x.shape[dim] - tail + 1, 1)  # distance from tail
         x[f(tail, None)] = x[f(tail - 1, tail)] + dist * (x[f(tail - 1, tail)] - x[f(tail - 2, tail - 1)])
 
     return x
 
 
-def linear_ramp_1d(x, idx, dim, end_before, end_after):
-    pass
+# TODO: test linear ramp and constant 1d
+
+
+def linear_ramp_1d(x, idx, dim, before, after):
+    head, tail = idx[dim].start, idx[dim].stop
+
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
+
+    def _linspace(start, end, steps, s):  # fast linspace, s is slice object
+        return torch.linspace(start, end, steps, dtype=x.dtype, device=x.device)[s].view([-1] + [1] * (x.ndim - dim - 1))
+
+    if head > 0:  # should pad before
+        dist = _linspace(0, 1, head + 1, slice(None, -1))  # distance from left end
+        x[f(head)] = before + dist * (x[f(head, head + 1)] - before)
+
+    if tail < x.shape[dim]:
+        dist = _linspace(1, 0, x.shape[dim] - tail + 1, slice(1, None))  # distance from right end
+        x[f(tail, None)] = after - dist * (after - x[f(tail - 1, tail)])
+
+    return x
+
+
+def constant_1d(x, idx, dim, before, after):
+    head, tail = idx[dim].start, idx[dim].stop
+
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
+
+    if head > 0:  # should pad before
+        x[f(head)] = before
+
+    if tail < x.shape[dim]:  # should pad after
+        x[f(tail, None)] = after
+
+    return x

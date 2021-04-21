@@ -13,7 +13,11 @@ def get_random_data():
     # ndim_padded = np.random.randint(0, ndim)
     ndim_padded = ndim
 
-    pad_ti = tuple(np.random.randint(0, 30, size=ndim_padded * 2).tolist())
+    # use smaller padding size to avoid cycle bug in numpy
+    padding = np.random.randint(0, 8, size=ndim_padded * 2)
+    if small_padding := False:
+        padding = np.clip(padding, 0, np.repeat(shape[ndim - ndim_padded:][::-1], 2))
+    pad_ti = tuple(padding.tolist())
     pad_np = pad_width_format(pad_ti, source="torch", target="numpy", ndim=ndim)
 
     arr_np = np.random.rand(*shape) * 100
@@ -50,9 +54,9 @@ class PaddingTestCase(unittest.TestCase):
 
     def test_const(self):
         for i in range(self.n_trials):
-            arr_np, arr_ti, pad_np, pad_ti = get_data()
+            arr_np, arr_ti, pad_np, pad_ti = get_random_data()
             res_np = np.pad(arr_np, pad_np, mode="constant", constant_values=3)
-            res_ti = pad(arr_ti, pad_ti, mode="constant", constant_value=3)
+            res_ti = pad(arr_ti, pad_ti, mode="constant", constant_values=3)
             self.assertLess(np.abs(res_ti.numpy() - res_np).sum(), 1e-8)
 
     def test_keyword_modes(self):
@@ -81,7 +85,7 @@ class PaddingTestCase(unittest.TestCase):
         np_padding = [[0, 0], [4, 7], [1, 9]]
         ti_padding = [1, 9, 4, 7]
         res_np = np.pad(a, pad_width=np_padding, mode="wrap")
-        res_ti = pad(torch.from_numpy(a), pad=tuple(ti_padding), mode="circular").numpy()
+        res_ti = pad(torch.from_numpy(a), padding=tuple(ti_padding), mode="circular").numpy()
         res_wt = pywt.pad(a, pad_widths=np_padding, mode="periodic")
         print(res_np.shape)
         print(res_np)
@@ -174,6 +178,27 @@ class PaddingTestCase(unittest.TestCase):
         print(res_pywt)
         print(res_ti)
         self.assertArrayEqual(res_pywt, res_ti)
+
+    def test_constant(self):
+        for i in range(self.n_trials):
+            arr_np, arr_ti, pad_np, pad_ti = get_random_data()
+            vals_ti = np.random.rand(arr_np.ndim * 2)
+            vals_np = pad_width_format(vals_ti, source="torch", target="numpy", ndim=arr_np.ndim)
+            res_np = np.pad(arr_np, pad_np, mode="constant", constant_values=vals_np)
+            res_ti = pad(arr_ti, pad_ti, mode="constant", constant_values=vals_ti).numpy()
+            with self.subTest(pad_ti=pad_ti):
+                self.assertArrayEqual(res_np, res_ti)
+
+    def test_linear_ramp(self):
+        for i in range(self.n_trials):
+            arr_np, arr_ti, pad_np, pad_ti = get_random_data()
+            # end values
+            vals_ti = np.random.rand(arr_np.ndim * 2)
+            vals_np = pad_width_format(vals_ti, source="torch", target="numpy", ndim=arr_np.ndim)
+            res_np = np.pad(arr_np, pad_np, mode="linear_ramp", end_values=vals_np)
+            res_ti = pad(arr_ti, pad_ti, mode="linear_ramp", end_values=vals_ti).numpy()
+            with self.subTest(pad_ti=pad_ti):
+                self.assertArrayEqual(res_np, res_ti)
 
 
 if __name__ == '__main__':

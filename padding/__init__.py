@@ -1,6 +1,9 @@
 """
 General padding functionalities.
 
+Padding extends the border of the original signal so the output
+has a certain shape.
+
 We design this padding package with these principles:
 
 1. Maximal compatibility with PyTorch.
@@ -81,17 +84,26 @@ Padding Modes
     ``a b c -> a b c c | a b c c | a b c c``
     Note that it first extends the signal to an even length prior to using periodic boundary conditions
 
-``"odd_symmetric"`` - extend the signal by a point-reflection across a hypothetical midpoint between the edge
-    and the symmetrically reflected edge.
-    ``2a-d 2a-c 2a-b a | a b c d | d 2d-c 2d-b 2d-a | 2d-a 2(2d-a)-(2d-b) 2(2d-a)-(2d-c) 2(2d-a)-d``
-
 ``"odd_reflect"`` - extend the signal by a point-reflection across the edge element
     ``2a-d 2a-c 2a-b | a b c d | 2d-c 2d-b 2d-a | 2(2d-a)-(2d-b) 2(2d-a)-(2d-c) 2(2d-a)-d``
     Also known has whole-sample antisymmetric.
 
+``"odd_symmetric"`` - extend the signal by a point-reflection across a hypothetical midpoint between the edge
+    and the symmetrically reflected edge.
+    ``2a-d 2a-c 2a-b a | a b c d | d 2d-c 2d-b 2d-a | 2d-a 2(2d-a)-(2d-b) 2(2d-a)-(2d-c) 2(2d-a)-d``
+
 ``<function>`` - extend the signal with a customized function
-    The function should have signature ``pad_func(x, idx, dim, **kwargs)``, like other functions
-    in ``pad_1d``
+    The function should have signature ``pad_func(x, idx, dim)``, like other functions
+    in :ref:`pad_1d.py`. You may find reading the source code from :ref:`pad_1d.py`
+    and using the ``_modify_index`` function useful.
+
+    To pass customized keyword arguments (like end_values, constant_values, and stat_length)
+    to a self-defined padding function, especially when they depend on ``dim``,
+    the user can define a separate function ``f: dim -> kwargs`` and call ``f``
+    inside ``pad_func`` to get the keyword arguments from dimension.
+
+    This is not the most elegant design but it works when it needs to,
+    so please let me know if any improvement is urgently needed and I can fix it.
 
 
 =============        =============   ===========     ==============================  =======

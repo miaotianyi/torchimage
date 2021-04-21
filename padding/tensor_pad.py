@@ -2,7 +2,7 @@ import torch
 from torch.nn import functional as F
 
 from . import pad_1d
-from .utils import _modify_idx, _check_padding
+from .utils import _modify_idx, _check_padding, pad_width_format
 
 
 _padding_function_dict = {
@@ -18,7 +18,12 @@ _padding_function_dict = {
 }
 
 
-def pad(x: torch.Tensor, pad, mode, constant_value=0):
+_stat_padding_set = {
+    "maximum", "mean", "median", "minimum"
+}
+
+
+def pad(x: torch.Tensor, padding, mode, constant_values=0, end_values=0.0):
     """
     Pad an n-dimensional tensor according to a user-specified mode.
 
@@ -27,7 +32,7 @@ def pad(x: torch.Tensor, pad, mode, constant_value=0):
     x : torch.Tensor
         Original tensor to be padded
 
-    pad : tuple of int
+    padding : tuple of int
         Padding width specification.
 
         It must be a tuple like
@@ -42,11 +47,17 @@ def pad(x: torch.Tensor, pad, mode, constant_value=0):
     mode : str or <function>
         Padding mode or padding function.
 
-    constant_value : float, tuple of float
+    constant_values : float, tuple of float
         Constant value for padding if mode is ``constant``.
 
         If it's a tuple of float, it must follow the format of torch padding width.
         e.g. ``(before_{n-1}, after_{n-1}, before_{n-2}, after_{n-2}, ..., before_{dim}, after_{dim})``
+
+    end_values : float, tuple of float
+        todo
+
+    stat_length : None, int, tuple of int
+        todo
 
     Returns
     -------
@@ -55,17 +66,17 @@ def pad(x: torch.Tensor, pad, mode, constant_value=0):
     """
     # fall back to torch's official implementation
     if mode == "zeros":
-        return F.pad(x, pad=pad, mode="constant", value=0)
-    if mode == "constant":
-        return F.pad(x, pad=pad, mode=mode, value=constant_value)
+        return F.pad(x, pad=padding, mode="constant", value=0)
+    if mode == "constant" and not hasattr(constant_values, "__len__"):  # 1 constant value for padding
+        return F.pad(x, pad=padding, mode=mode, value=constant_values)
 
     # input validation
-    _check_padding(x, pad)
+    _check_padding(x, padding)
 
-    ndim_padded = len(pad) // 2  # the number of dimensions that are padded
-
-    pad_beg = torch.tensor([0] * (x.ndim - ndim_padded) + list(pad[::2][::-1]))
-    pad_end = torch.tensor([0] * (x.ndim - ndim_padded) + list(pad[1::2][::-1]))
+    pad_beg, pad_end = torch.tensor(pad_width_format(padding, source="torch", target="numpy", ndim=x.ndim)).T
+    # ndim_padded = len(pad) // 2  # the number of dimensions that are padded
+    # pad_beg = torch.tensor([0] * (x.ndim - ndim_padded) + list(pad[::2][::-1]))
+    # pad_end = torch.tensor([0] * (x.ndim - ndim_padded) + list(pad[1::2][::-1]))
 
     old_shape = torch.tensor(x.shape)
 
@@ -87,11 +98,25 @@ def pad(x: torch.Tensor, pad, mode, constant_value=0):
     if mode == "empty":
         return y
 
-    if callable(mode):  # cusotmized padding function
+    if callable(mode):  # customized padding function
         pad_func = mode
+    elif mode == "constant":  # todo: constant padding with multiple values
+        assert len(constant_values) == len(padding)
+        values = pad_width_format(constant_values, source="torch", target="numpy", ndim=x.ndim)
+
+        def pad_func(x, idx, dim):
+            return pad_1d.constant_1d(x, idx, dim, before=values[dim][0], after=values[dim][1])
+    elif mode == "linear_ramp":  # todo: linear ramp
+        if not hasattr(end_values, "__len__"):  # end_values is scalar
+            values = ((end_values, end_values),) * x.ndim  # same end values everywhere
+        else:  # end_values is tuple with torch padding width format
+            values = pad_width_format(end_values, source="torch", target="numpy", ndim=x.ndim)
+
+        def pad_func(x, idx, dim):
+            return pad_1d.linear_ramp_1d(x, idx, dim, before=values[dim][0], after=values[dim][1])
     elif mode not in _padding_function_dict:
         raise ValueError(f"Unsupported padding mode {mode}")
-    else:
+    else:  # no other keyword arguments required
         pad_func = _padding_function_dict[mode]
 
     for dim in range(x.ndim):

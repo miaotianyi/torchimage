@@ -66,7 +66,7 @@ def _check_padding(x, pad):
     assert all(hasattr(p, "__index__") and p >= 0 for p in pad)  # is nonnegative int
 
 
-def pad_width_format(pad, source="numpy", target="torch", ndim=None):
+def pad_width_format(padding, source="numpy", target="torch", ndim=None):
     """
     Convert between 2 padding width formats.
 
@@ -87,7 +87,7 @@ def pad_width_format(pad, source="numpy", target="torch", ndim=None):
 
     Parameters
     ----------
-    pad : tuple of int, or tuple of tuple of int
+    padding : tuple of int, or tuple of tuple of int
         the input padding width format to convert
 
     source, target : str
@@ -97,18 +97,24 @@ def pad_width_format(pad, source="numpy", target="torch", ndim=None):
         Number of dimensions in the tensor of interest.
 
         Only used when converting from torch to numpy format.
+
+    Returns
+    -------
+    padding : tuple of int, or tuple of tuple of int
+        the new padding width specification
     """
     if source == target:
-        return pad
+        return padding
 
     if source == "numpy" and target == "torch":
-        pad = tuple(tuple(x) for x in pad)
-        return sum(pad[::-1], start=())
+        padding = tuple(tuple(x) for x in padding)
+        padding = sum(padding[::-1], start=())
+        return padding
     elif source == "torch" and target == "numpy":
-        pad = tuple(pad)
+        padding = tuple(padding)
         assert ndim is not None, "ndim not supplied for pad width conversion from torch to numpy"
-        ndim_padded = len(pad) // 2
-        return ((0, 0), ) * (ndim - ndim_padded) + tuple(pad[i:i+2] for i in range(0, len(pad), 2))[::-1]
+        ndim_padded = len(padding) // 2
+        return ((0, 0), ) * (ndim - ndim_padded) + tuple(padding[i:i + 2] for i in range(0, len(padding), 2))[::-1]
     else:
         raise ValueError(f"Unsupported pad width format conversion from {source=} to {target=}")
 
