@@ -4,7 +4,9 @@ parameters, such as average pooling and gaussian pooling.
 """
 
 from .gaussian import GaussianPool
+from .generic import GenericPool2d, MedianPool2d, QuantilePool2d
 
 __all__ = [
-    "GaussianPool"
+    "GaussianPool",
+    "GenericPool2d", "MedianPool2d", "QuantilePool2d"
 ]
