@@ -23,7 +23,7 @@ _stat_padding_set = {
 }
 
 
-def pad(x: torch.Tensor, padding, mode, constant_values=0, end_values=0.0):
+def pad(x: torch.Tensor, padding, mode, constant_values=0, end_values=0.0, stat_length=None):
     """
     Pad an n-dimensional tensor according to a user-specified mode.
 
@@ -54,10 +54,22 @@ def pad(x: torch.Tensor, padding, mode, constant_values=0, end_values=0.0):
         e.g. ``(before_{n-1}, after_{n-1}, before_{n-2}, after_{n-2}, ..., before_{dim}, after_{dim})``
 
     end_values : float, tuple of float
-        todo
+        Used in ``linear_ramp``. The values used for the ending value of the linear_ramp
+        and that will form the edge of the padded array. Default: 0
+
+        If it's a tuple of float, it must follow the format of torch padding width.
+        e.g. ``(before_{n-1}, after_{n-1}, before_{n-2}, after_{n-2}, ..., before_{dim}, after_{dim})``
 
     stat_length : None, int, tuple of int
-        todo
+        Used in "maximum", "mean", "median", and "minimum".
+        Number of values at edge of each axis used to calculate the statistic value.
+        Default: None.
+
+        If None, all values at the axis will be used for calculation.
+        (This is computationally expensive, not recommended.)
+
+        For each axis, this number will be clipped by ``(1, length)`` where
+        ``length`` is the side length of the original tensor.
 
     Returns
     -------
@@ -100,13 +112,13 @@ def pad(x: torch.Tensor, padding, mode, constant_values=0, end_values=0.0):
 
     if callable(mode):  # customized padding function
         pad_func = mode
-    elif mode == "constant":  # todo: constant padding with multiple values
+    elif mode == "constant":  # constant padding with multiple values
         assert len(constant_values) == len(padding)
         values = pad_width_format(constant_values, source="torch", target="numpy", ndim=x.ndim)
 
         def pad_func(x, idx, dim):
             return pad_1d.constant_1d(x, idx, dim, before=values[dim][0], after=values[dim][1])
-    elif mode == "linear_ramp":  # todo: linear ramp
+    elif mode == "linear_ramp":  # linear ramp
         if not hasattr(end_values, "__len__"):  # end_values is scalar
             values = ((end_values, end_values),) * x.ndim  # same end values everywhere
         else:  # end_values is tuple with torch padding width format
@@ -114,6 +126,14 @@ def pad(x: torch.Tensor, padding, mode, constant_values=0, end_values=0.0):
 
         def pad_func(x, idx, dim):
             return pad_1d.linear_ramp_1d(x, idx, dim, before=values[dim][0], after=values[dim][1])
+    elif mode in ("maximum", "mean", "median", "minimum"):
+        if not hasattr(stat_length, "__len__"):  # end_values is scalar
+            values = ((stat_length, stat_length),) * x.ndim  # same end values everywhere
+        else:  # end_values is tuple with torch padding width format
+            values = pad_width_format(stat_length, source="torch", target="numpy", ndim=x.ndim)
+
+        def pad_func(x, idx, dim):
+            return pad_1d.stat_1d(x, idx, dim, before=values[dim][0], after=values[dim][1], mode=mode)
     elif mode not in _padding_function_dict:
         raise ValueError(f"Unsupported padding mode {mode}")
     else:  # no other keyword arguments required

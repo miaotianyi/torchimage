@@ -62,7 +62,7 @@ before, after : float
 
     For ``constant_1d``, they are the constants used for padding before and after ground truth.
 
-    For ``stat_1d``, they are the todo
+    For ``stat_1d``, they are the lengths at the border to compute statistics with.
 
 Returns
 -------
@@ -337,5 +337,45 @@ def constant_1d(x, idx, dim, before, after):
 
     if tail < x.shape[dim]:  # should pad after
         x[f(tail, None)] = after
+
+    return x
+
+
+_stat_funcs = {
+    "mean": lambda x, dim: torch.mean(x, dim=dim, keepdim=True),
+    "median": lambda x, dim: torch.median(x, dim=dim, keepdim=True).values,
+    "maximum": lambda x, dim: torch.max(x, dim=dim, keepdim=True).values,
+    "minimum": lambda x, dim: torch.min(x, dim=dim, keepdim=True).values
+}
+
+
+def stat_1d(x, idx, dim, before, after, mode):
+    head, tail = idx[dim].start, idx[dim].stop
+    length = tail - head
+
+    def f(*args):  # fast idx modification
+        return _modify_idx(*args, idx=idx, dim=dim)
+
+    sf = _stat_funcs[mode]  # statistic function
+
+    if (head > 0 and tail < x.shape[dim]) and (before is None and after is None):
+        # calculate total statistics only once
+        result = sf(x[f(head, tail)], dim=dim)
+        x[f(head)] = result
+        x[f(tail, None)] = result
+
+    if head > 0:  # should pad before
+        if before is None:
+            x[f(head)] = sf(x[f(head, tail)], dim=dim)
+        else:
+            before = min(length, max(1, before))  # stat length should be at least 1 & no greater than length
+            x[f(head)] = sf(x[f(head, head + before)], dim=dim)
+
+    if tail < x.shape[dim]:  # should pad after
+        if after is None:
+            x[f(tail, None)] = sf(x[f(head, tail)], dim=dim)
+        else:
+            after = min(length, max(1, after))  # stat length should be at least 1 & no greater than length
+            x[f(tail, None)] = sf(x[f(tail - after, tail)], dim=dim)
 
     return x

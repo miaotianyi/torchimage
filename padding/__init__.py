@@ -60,7 +60,9 @@ Padding Modes
     ``? ? ? ? | a b c d | ? ? ? ?`` where the empty values are from ``torch.empty``
 
 ``"constant"`` - pads with a constant value
-    ``p p p p | a b c d | p p p p`` where ``p`` is supplied by ``constant_value`` argument.
+    ``p p p p | a b c d | p p p p`` where ``p`` is supplied by ``constant_values`` argument.
+
+    ``p1 p1 p1 p1 | a b c d | p2 p2 p2 p2`` where ``p1`` and ``p2`` are different constant values.
 
 ``"zeros"`` - pads with 0; a special case of constant padding
     ``0 0 0 0 | a b c d | 0 0 0 0``
@@ -92,6 +94,27 @@ Padding Modes
     and the symmetrically reflected edge.
     ``2a-d 2a-c 2a-b a | a b c d | d 2d-c 2d-b 2d-a | 2d-a 2(2d-a)-(2d-b) 2(2d-a)-(2d-c) 2(2d-a)-d``
 
+``"smooth"`` - extend the signal according to the first derivatives calculated on the edges
+    (straight line extrapolation)
+    ``a-4(b-a) a-3(b-a) a-2(b-a) a-(b-a) | a b c d | d+(d-c) d+2(d-c) d+3(d-c) d+4(d-c)
+
+``"linear_ramp"`` - pads with the linear ramp between end value and the array border value.
+    ``| a b c d | d+s d+2s ... d+n*s e`` where ``e`` is the end value, ``n`` is the number of
+    elements between ``d`` and ``e``, and ``s = (e-d)/(n+1)``
+
+    The end values are specified by argument ``end_values``
+
+``"maximum"``, ``"mean"``, ``"median"``, ``"minimum"`` - pads with a statistical value
+    of all or part of the vector along each axis.
+
+    The length of the vector used for computing the statistical value is specified
+    by argument ``stat_length``.
+
+    Note that PyTorch's median behaves differently from numpy's median.
+    When there is an even number of elements, ``torch.median`` returns the left element
+    at the center, whereas ``numpy.median`` returns the arithmetic mean between
+    the two elements at the center. We retain PyTorch's behavior here.
+
 ``<function>`` - extend the signal with a customized function
     The function should have signature ``pad_func(x, idx, dim)``, like other functions
     in :ref:`pad_1d.py`. You may find reading the source code from :ref:`pad_1d.py`
@@ -101,6 +124,8 @@ Padding Modes
     to a self-defined padding function, especially when they depend on ``dim``,
     the user can define a separate function ``f: dim -> kwargs`` and call ``f``
     inside ``pad_func`` to get the keyword arguments from dimension.
+    I use the same method for constant (when there are multiple padding values),
+    linear ramp and stat padding.
 
     This is not the most elegant design but it works when it needs to,
     so please let me know if any improvement is urgently needed and I can fix it.
@@ -120,8 +145,11 @@ reflect              reflect         symw            reflect                    
 antisymmetric        antisymmetric   asym, asymh     N/A                             N/A
 odd_reflect          antireflect     asymw           reflect, reflect_type='odd'     N/A
 odd_symmetric        N/A             N/A             symmetric, reflect_type='odd'   N/A
-todo                 N/A             N/A             linear_ramp                     N/A
-todo                 N/A             N/A             maximum, mean, median, minimum  N/A
+linear_ramp          N/A             N/A             linear_ramp                     N/A
+maximum              N/A             N/A             maximum                         N/A
+mean                 N/A             N/A             mean                            N/A
+median               N/A             N/A             median                          N/A
+minimum              N/A             N/A             minimum                         N/A
 empty                N/A             N/A             empty                           N/A
 <function>           N/A             N/A             <function>                      N/A
 =============        =============   ===========     ==============================  =======

@@ -200,6 +200,21 @@ class PaddingTestCase(unittest.TestCase):
             with self.subTest(pad_ti=pad_ti):
                 self.assertArrayEqual(res_np, res_ti)
 
+    def test_stat(self):
+        for mode in ("maximum", "mean", "median", "minimum"):
+            for i in range(self.n_trials):
+                arr_np, arr_ti, pad_np, pad_ti = get_random_data()
+                # stat length
+                vals_ti = np.random.randint(0, 3, arr_np.ndim * 2)
+                vals_ti = np.clip(vals_ti, 1, None)
+                # vals_ti = np.clip(vals_ti, 1, np.repeat(arr_np.shape[::-1], 2))
+                vals_ti = tuple(vals_ti.tolist())
+                vals_np = pad_width_format(vals_ti, source="torch", target="numpy", ndim=arr_np.ndim)
+                res_np = np.pad(arr_np, pad_np, mode=mode, stat_length=vals_np)
+                res_ti = pad(arr_ti, pad_ti, mode=mode, stat_length=vals_ti).numpy()
+                with self.subTest(mode=mode, pad_ti=pad_ti, stat_length=vals_ti):
+                    self.assertArrayEqual(res_np, res_ti)
+
 
 if __name__ == '__main__':
     unittest.main()
