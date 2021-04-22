@@ -1,6 +1,6 @@
 import unittest
-from padding import pad
-from padding.utils import pad_width_format
+from torchimage.padding import pad
+from torchimage.padding.utils import pad_width_format
 import numpy as np
 import torch
 import pywt
