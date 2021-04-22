@@ -1,7 +1,7 @@
 import math
 import torch
 from torch import nn
-from utils import _repeat_align
+from ..misc import _repeat_align
 
 
 class GaussianPool(nn.Module):

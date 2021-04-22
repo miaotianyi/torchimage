@@ -7,14 +7,9 @@ import torch
 from torch import nn
 
 from ..utils.validation import check_sensor_alignment
-from ....utils.functional import FConv2d
 
 relative_positions = "R", "B", "GR", "GB"
 absolute_positions = "00", "01", "10", "11"
-
-# nn.Conv2d is automatically quantized by Cambricon
-# Conv2d = nn.Conv2d
-Conv2d = FConv2d
 
 
 _color_dict = {
@@ -82,7 +77,7 @@ class BayerConv2d(nn.Module):
         # convolution layers are bound with the relative color locations in a bayer array
         # relative positions
         for pos_rel in relative_positions:
-            self.conv_dict[pos_rel] = Conv2d(
+            self.conv_dict[pos_rel] = nn.Conv2d(
                 in_channels=self.in_channels, out_channels=self.out_channels, kernel_size=self.kernel_size,
                 stride=2, padding=0, bias=self.bias
             )
