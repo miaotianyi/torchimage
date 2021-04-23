@@ -1,3 +1,6 @@
+# sphinx builds
+docs/build
+
 # IDEA files
 .idea
 
