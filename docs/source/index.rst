@@ -7,12 +7,15 @@ Welcome to torchimage's documentation!
 ======================================
 
 .. toctree::
-   :maxdepth: 3
-   :caption: Contents:
+   :maxdepth: 2
 
-.. automodule:: torchimage
-    :members:
-
+   Package Index <torchimage>
+   Padding <torchimage.padding>
+   Pooling <torchimage.pooling>
+   Filtering <torchimage.filtering>
+   Metrics <torchimage.metrics>
+   Linear Algebra <torchimage.linalg>
+   Color Filter Arrays <torchimage.cfa>
 
 Indices and tables
 ==================
