@@ -1,5 +1,9 @@
 # torchimage
+[![Documentation Status](https://readthedocs.org/projects/torchimage/badge/?version=latest)](https://torchimage.readthedocs.io/en/latest/?badge=latest)
+
 PyTorch utilities for classic image processing and evaluation
+
+[Documentation](https://torchimage.readthedocs.org)
 
 Motivation:
 
