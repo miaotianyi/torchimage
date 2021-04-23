@@ -10,6 +10,8 @@ Welcome to torchimage's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+.. automodule:: torchimage
+    :members:
 
 
 Indices and tables

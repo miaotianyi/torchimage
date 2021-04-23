@@ -10,9 +10,9 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('.'))
 
 
 # -- Project information -----------------------------------------------------
@@ -32,6 +32,7 @@ release = '0.0.1'
 # ones.
 extensions = [
     "sphinx.ext.autodoc",  # automatic documentation from docstring
+    "sphinx.ext.coverage",  # documentation coverage
     "sphinx.ext.napoleon",  # Numpy-style docstring
     # "sphinx_rtd_theme"  # read the docs theme
 ]
