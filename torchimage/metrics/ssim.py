@@ -133,7 +133,7 @@ def ssim(img1, img2, window_size=11,
         return ssim_score
 
 
-def multi_ssim(img1, img2, window_size=11,
+def multiscale_ssim(img1, img2, window_size=11,
                weights=None, use_prod=True,
                gaussian_weights=True, sigma=1.5,
                K1=0.01, K2=0.03, use_sample_covariance=True,
