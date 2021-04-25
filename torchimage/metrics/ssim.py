@@ -4,6 +4,14 @@ from torch.nn import functional as F
 from ..filtering import GenericFilter2d
 
 
+def _scale_factor(use_sample_covariance, window_size):
+    if use_sample_covariance:
+        n_pixels = window_size ** 2
+        return n_pixels / (n_pixels - 1)
+    else:
+        return None
+
+
 def _mu_sigma(img1, img2, filter_layer, scaling_factor):
     mu1 = filter_layer(img1)
     mu2 = filter_layer(img2)
@@ -116,7 +124,7 @@ def ssim(img1, img2, window_size=11,
     else:  # use simple averaging
         filter_layer = GenericFilter2d("mean", kernel_size=window_size, padding_mode=padding_mode, padding_value=padding_value)
 
-    scaling_factor = (n_pixels := window_size ** 2) / (n_pixels - 1) if use_sample_covariance else None
+    scaling_factor = _scale_factor(use_sample_covariance, window_size)
 
     mu1_sq, mu2_sq, mu1_mu2, sigma1_sq, sigma2_sq, sigma12 = _mu_sigma(img1, img2, filter_layer, scaling_factor)
 
@@ -198,7 +206,7 @@ def multiscale_ssim(img1, img2, window_size=11,
     C1 = K1 ** 2
     C2 = K2 ** 2
 
-    scaling_factor = (n_pixels := window_size ** 2) / (n_pixels - 1) if use_sample_covariance else None
+    scaling_factor = _scale_factor(use_sample_covariance, window_size)
 
     overall_mssim = 1 if use_prod else 0  # product vs sum
 

@@ -116,5 +116,5 @@ def pad_width_format(padding, source="numpy", target="torch", ndim=None):
         ndim_padded = len(padding) // 2
         return ((0, 0), ) * (ndim - ndim_padded) + tuple(padding[i:i + 2] for i in range(0, len(padding), 2))[::-1]
     else:
-        raise ValueError(f"Unsupported pad width format conversion from {source=} to {target=}")
+        raise ValueError(f"Unsupported pad width format conversion from {source} to {target}")
 

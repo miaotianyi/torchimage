@@ -15,7 +15,7 @@ def get_random_data():
 
     # use smaller padding size to avoid cycle bug in numpy
     padding = np.random.randint(0, 8, size=ndim_padded * 2)
-    if small_padding := False:
+    if False:  # small padding
         padding = np.clip(padding, 0, np.repeat(shape[ndim - ndim_padded:][::-1], 2))
     pad_ti = tuple(padding.tolist())
     pad_np = pad_width_format(pad_ti, source="torch", target="numpy", ndim=ndim)

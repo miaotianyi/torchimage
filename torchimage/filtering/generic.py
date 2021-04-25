@@ -98,7 +98,7 @@ class GenericFilter2d(nn.Module):
             self.pooling_layer = pooling
             self.kernel_size = pooling.kernel_size
         else:
-            raise ValueError(f"Unknown pooling {pooling=} with {type(pooling)=}."
+            raise ValueError(f"Unknown pooling {pooling} with type {type(pooling)}."
                              f"pooling must be a keyword str or nn.Module")
 
         assert padding_mode in ("constant", "reflect", "replicate", "circular")
