@@ -303,9 +303,6 @@ def smooth_1d(x, idx, dim):
     return x
 
 
-# TODO: test linear ramp and constant 1d
-
-
 def linear_ramp_1d(x, idx, dim, before, after):
     head, tail = idx[dim].start, idx[dim].stop
 

@@ -7,7 +7,11 @@ a filter layer usually consists of its pooling layer counterpart
 with stride 1, after a "same" padding layer that ensures the output
 and the input will have the same shape. We separate filtering and pooling
 so that users can have greater freedom and the code becomes
-easier to maintain. Some may argue that in separable filters,
+easier to maintain.
+
+TODO: deprecate the following comment
+    almost all other tensor operations cause copying.
+Some may argue that in separable filters,
 padding each dimension before immediately convolving can save some
 computational costs, but we decide that copying a tensor for padding
 isn't worth it, considering that the padding elements are relatively
