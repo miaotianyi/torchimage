@@ -24,6 +24,17 @@ _stat_padding_set = {
 }
 
 
+class GenericPadNd(nn.Module):
+    def __init__(self, pad_width, mode, constant_values, end_values, stat_length):
+        super(GenericPadNd, self).__init__()
+
+    def forward(self, x: torch.Tensor):  # all at once; pad all specified dimensions
+        pass
+
+    def pad_dim(self, x: torch.Tensor, dim: int):  # pad a specific dimension
+        pass
+
+
 def pad(x: torch.Tensor, padding, mode, constant_values=0, end_values=0.0, stat_length=None):
     """
     Pad an n-dimensional tensor according to a user-specified mode.
