@@ -96,18 +96,23 @@ def sobel_weight(image: torch.Tensor, grayscale=True, gamma_1=3, gamma_2=0.1, ep
     gx, gy = sobel_x_y(image, grayscale=grayscale)
     g = gx.abs() ** gamma_1 + gy.abs() ** gamma_1
     g = g.clamp(eps, 1.0) ** gamma_2
-    if grayscale and image.shape[1] != 1:  # if the image itself is not grayscale, but the weight is
-        g = g.repeat(1, image.shape[1], 1, 1)
+    # if grayscale and image.shape[1] != 1:  # if the image itself is not grayscale, but the weight is
+    #     g = g.repeat(1, image.shape[1], 1, 1)
     return g
 
 
 class EdgeLoss(nn.Module):
-    def __init__(self, loss: nn.Module, alpha=0.3, grayscale=True, gamma_1=3, gamma_2=0.1, eps=1e-3):
+    def __init__(self, loss: nn.Module = nn.L1Loss(), alpha=0.3, grayscale=True, gamma_1=3, gamma_2=0.1, eps=1e-3):
         """
         Edge loss is a convex combination between the original loss and a new loss weighted
         by a tensor (range 0~1) that emphasizes edges.
 
         Specifically, ``alpha * loss(test * weight, true * weight) + (1 - alpha) * loss(test, true)``
+
+        L1(test, true) = mean | test - true |
+        weight * L1 = mean (weight * | test - true|)
+        MSE(test, true) = mean (test - true)**2
+        w * MSE = mean[ weight * (test - true)**2 ]
 
         Be aware that this weighting scheme may cause some more complex visual metrics
         (beyond L1 loss and MSE loss) to exhibit undefined behaviors.
@@ -186,7 +191,7 @@ def run_edge_detect():
 
 
 def run_torch_edge_detect():
-    a = data.brick()
+    a = data.astronaut()
     # a = data.camera()
     a = a.astype(float) / 256
     if a.ndim == 2:
@@ -194,18 +199,21 @@ def run_torch_edge_detect():
     else:
         b = torch.from_numpy(np.moveaxis(a, -1, 0)).unsqueeze(0)
 
-    graysgale = False
-    gx, gy = sobel_x_y(b, grayscale=graysgale)
+    grayscale = True
+    gx, gy = sobel_x_y(b, grayscale=grayscale)
     # g = gx ** 2 + gy ** 2
     g = gx.abs() ** 3 + gy.abs() ** 3
 
-    if a.ndim == 2 or graysgale:  # g, gx, gy have only 1 channel
+    if a.ndim == 2 or grayscale:  # g, gx, gy have only 1 channel
         f = lambda x: x.squeeze().numpy()
     else:
         f = lambda x: np.moveaxis(x.squeeze().numpy(), source=0, destination=-1)
 
     g, gx, gy = f(g), f(gx), f(gy)
     stat = lambda x: [x.min(), x.mean(), np.median(x), x.max()]
+
+    m_grad = f(morphological_gradient(b, kernel_size=3, grayscale=grayscale))
+    print(stat(m_grad))
 
     print(stat(g), stat(gx), stat(gy))
     # plt.hist(g_sq.ravel(), bins=50)
@@ -217,8 +225,17 @@ def run_torch_edge_detect():
     ax[0, 0].imshow(a, cmap="gray", vmin=0, vmax=1)
     ax[0, 1].imshow(g ** 0.2, cmap="gray", vmin=0, vmax=1)
     ax[1, 0].imshow(np.abs(gx), cmap="gray", vmin=0, vmax=1)
-    ax[1, 1].imshow(np.abs(gy), cmap="gray", vmin=0, vmax=1)
+    # ax[1, 1].imshow(np.abs(gy), cmap="gray", vmin=0, vmax=1)
+    ax[1, 1].imshow(m_grad, cmap="gray", vmin=0, vmax=1)
     plt.show()
+
+
+def morphological_gradient(image, kernel_size=3, grayscale=True):
+    if grayscale:
+        image = image.mean(dim=1, keepdims=True)  # nchw
+    dilate = nn.MaxPool2d(kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
+    erode = lambda x: -(dilate(-x))
+    return dilate(image) - erode(image)
 
 
 run_torch_edge_detect()
