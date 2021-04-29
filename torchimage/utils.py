@@ -82,7 +82,9 @@ class NdSpec:
             Expected shape of an item, i.e. ``np.array(item).shape``.
         """
         self.item_shape = tuple(int(x) for x in item_shape)
-        self.data = np.array(data)
+        # using object dtype allows full ndarray functionality
+        # which is not available in python lists.
+        self.data = np.array(data, dtype=object)
 
         if self.data.shape == self.item_shape:
             self.n_items = None  # data is item
