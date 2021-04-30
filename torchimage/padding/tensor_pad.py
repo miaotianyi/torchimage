@@ -3,7 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from . import pad_1d
-from .utils import _modify_idx, _check_padding, pad_width_format
+from .utils import modify_idx, _check_padding, pad_width_format
 
 
 _padding_function_dict = {
@@ -144,6 +144,6 @@ def pad(x: torch.Tensor, padding, mode, constant_values=0, end_values=0.0, stat_
         if head[dim] == 0 and tail[dim] == y.shape[dim]:  # no padding required
             continue
         y = pad_func(y, idx, dim)  # note that pad_func is still in-place
-        idx = _modify_idx(None, idx=idx, dim=dim)
+        idx = modify_idx(None, idx=idx, dim=dim)
 
     return y

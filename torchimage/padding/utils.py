@@ -4,7 +4,7 @@ Private utility functions for padding
 import torch
 
 
-def _make_idx(*args, dim, ndim):
+def make_idx(*args, dim, ndim):
     """
     Make an index that slices exactly along a specified dimension.
     e.g. [:, ... :, slice(*args), :, ..., :]
@@ -13,7 +13,7 @@ def _make_idx(*args, dim, ndim):
 
     Parameters
     ----------
-    *args : int or None
+    *args : tuple of int or None
         constructor arguments for the slice object at target axis
 
     dim : int
@@ -30,14 +30,14 @@ def _make_idx(*args, dim, ndim):
     return (slice(None), ) * dim + (slice(*args), ) + (slice(None), ) * (ndim - dim - 1)
 
 
-def _modify_idx(*args, idx, dim):
+def modify_idx(*args, idx, dim):
     """
     Make an index that slices a specified dimension while keeping the slices
     for other dimensions the same.
 
     Parameters
     ----------
-    *args : int or None
+    *args : tuple of int or None
         constructor arguments for the slice object at target axis
 
     idx : tuple of slice
