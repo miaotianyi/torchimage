@@ -93,9 +93,8 @@ class NdSpec:
         # (mainly recursive shape-finding)
         # which is not readily available in python lists.
         self.data = np.array(data, dtype=object)
-        assert self.data.size > 0, "Input data must be nonempty"
-
-        del data, item_shape  # prevent mistyping
+        if self.data.size == 0:
+            raise ValueError(f"Input data must be nonempty, got {data} instead")
 
         if self.data.ndim == len(self.item_shape):
             if self.data.shape == self.item_shape:
@@ -115,24 +114,25 @@ class NdSpec:
             assert self.data.shape[1:] == self.item_shape
             self.is_item = False
 
-    def __call__(self, axis: int, ndim=None):
+    def __len__(self):
+        if self.is_item:
+            return 0
+        else:
+            return self.data.shape[0]
+
+    def __call__(self, axis: int):
         if self.is_item:
             return self.data.tolist()
+        else:
+            return np.array(self.data[axis]).tolist()
 
         # right-justified, so negative index is always definitive
         # when ndim is None, we assume the tensor of interest has the same ndim as self.data.shape[0]
-        if axis < 0 or ndim is None:
-            return self.data[axis].tolist()
-
-        new_axis = axis - (ndim - self.data.shape[0])  # ignore leading axes (batch, channel, etc.)
-        return self.data[new_axis].tolist()
+        # if axis < 0 or ndim is None:
+        #     return self.data[axis].tolist()
+        #
+        # new_axis = axis - (ndim - self.data.shape[0])  # ignore leading axes (batch, channel, etc.)
+        # return self.data[new_axis].tolist()
 
     def __repr__(self):
         return f"NdSpec(data={self.data.tolist()}, item_shape={self.item_shape})"
-
-    def format_numpy(self, ndim):
-        pass
-
-    def format_torch(self):
-        pass
-
