@@ -29,9 +29,10 @@ class NdSpec:
     If only a scalar ``c`` is supplied, it should first be broadcast
     to length 2 (e.g. ``(c, c)``) and then returned for query.
 
-    Indeed, we assume that each item has the same shape, as no
-    counterexample has been found in practice.
-    Feel free to raise an issue if you need such a functionality.
+    In separable convolution, for example, we might want to pass
+    in a list of filters (1d arrays of floats). Since filters can have
+    different sizes, each filter is regarded as a Python object so
+    ``item_shape == ()``.
 
     **NdSpec enforces a nested, right-justified, left-to-right storage
     format** when a list of items is passed.
@@ -80,39 +81,48 @@ class NdSpec:
 
         item_shape : tuple
             Expected shape of an item, i.e. ``np.array(item).shape``.
+
+            If it's certain that not all items have the same shape,
+            use empty tuple ``()`` as item_shape since each array
+            will be treated as a separate object.
+            When item shape is known, however, it must be correctly
+            provided. Otherwise it will cause an error.
         """
         self.item_shape = tuple(int(x) for x in item_shape)
         # using object dtype allows full ndarray functionality
-        # which is not available in python lists.
+        # (mainly recursive shape-finding)
+        # which is not readily available in python lists.
         self.data = np.array(data, dtype=object)
+        assert self.data.size > 0, "Input data must be nonempty"
 
-        if self.data.shape == self.item_shape:
-            self.n_items = None  # data is item
+        del data, item_shape  # prevent mistyping
+
+        if self.data.ndim == len(self.item_shape):
+            if self.data.shape == self.item_shape:
+                self.is_item = True  # data is item
+            else:
+                raise ValueError(f"Incompatible data shape {self.data.shape} and item shape {self.item_shape}")
         elif self.data.ndim < len(self.item_shape):
             # requires extra broadcasting
-            reps = list(self.item_shape)
+            reps = np.array(self.item_shape)
             if self.data.ndim > 0:
-                reps[-self.data.ndim:] = [1] * self.data.ndim
+                reps[-self.data.ndim:] = 1
             self.data = np.tile(self.data, reps)
 
             assert self.data.shape == self.item_shape
-            self.n_items = None  # data is item now
-        else:
+            self.is_item = True  # data is item now
+        else:  # self.data.ndim > len(self.item_shape)
             assert self.data.shape[1:] == self.item_shape
-            self.n_items = self.data.shape[0]
-
-    def is_item(self):
-        return self.n_items is None
+            self.is_item = False
 
     def __call__(self, axis: int, ndim=None):
-        if self.is_item():
+        if self.is_item:
             return self.data.tolist()
 
-        if axis < 0:
+        # right-justified, so negative index is always definitive
+        # when ndim is None, we assume the tensor of interest has the same ndim as self.data.shape[0]
+        if axis < 0 or ndim is None:
             return self.data[axis].tolist()
-
-        if ndim is None:
-            raise ValueError("Only negative indices are allowed when ndim is unknown and is_item is False")
 
         new_axis = axis - (ndim - self.data.shape[0])  # ignore leading axes (batch, channel, etc.)
         return self.data[new_axis].tolist()
