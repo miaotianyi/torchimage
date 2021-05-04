@@ -18,6 +18,8 @@ class MyTestCase(unittest.TestCase):
             with self.subTest(data=filter_list):
                 nds = NdSpec(filter_list, item_shape=())
                 print(nds)
+                self.assertEqual(len(nds), 4)
+                self.assertEqual(len([x for x in nds]), 4)
                 self.assertFalse(nds.is_item)
                 self.assertEqual(len(nds), len(filter_list))
                 for i in range(-len(filter_list), len(filter_list)):
@@ -31,8 +33,10 @@ class MyTestCase(unittest.TestCase):
         nds = NdSpec([[1, 2]], item_shape=[2])
         print(nds)
         self.assertFalse(nds.is_item)
+        self.assertEqual(len(nds), 1)
         self.assertEqual(nds[0], [1, 2])
         self.assertEqual(nds[-1], [1, 2])
+        self.assertEqual([x for x in nds], [[1, 2]])
         for i in list(range(-20, -1)) + list(range(1, 15)):
             with self.assertRaises(IndexError):
                 nds[i]
@@ -40,6 +44,8 @@ class MyTestCase(unittest.TestCase):
     def test_item_list(self):
         nds = NdSpec([1, 2], item_shape=[2])
         print(nds)
+        self.assertEqual(len(nds), 0)
+        self.assertEqual([x for x in nds], [[1, 2]])
         self.assertTrue(nds.is_item)
         for i in np.random.randint(-100, 100, 50):
             self.assertEqual(nds[i], [1, 2])
@@ -47,6 +53,8 @@ class MyTestCase(unittest.TestCase):
     def test_item_scalar(self):
         nds = NdSpec(423, item_shape=[])
         print(nds)
+        self.assertEqual(len(nds), 0)
+        self.assertEqual([x for x in nds], [423])
         self.assertTrue(nds.is_item)
         for i in np.random.randint(-100, 100, 50):
             self.assertEqual(nds[i], 423)
@@ -55,6 +63,8 @@ class MyTestCase(unittest.TestCase):
         nds = NdSpec(423, item_shape=[2])
         print(nds)
         self.assertTrue(nds.is_item)
+        self.assertEqual(len(nds), 0)
+        self.assertEqual([x for x in nds], [[423, 423]])
         for i in range(-10, 10):
             self.assertEqual(nds[-i], [423, 423])
 
@@ -62,6 +72,8 @@ class MyTestCase(unittest.TestCase):
         nds = NdSpec([1, 2, 4], item_shape=[2, 3])
         print(nds)
         self.assertTrue(nds.is_item)
+        self.assertEqual(len(nds), 0)
+        self.assertEqual([x for x in nds], [[[1, 2, 4], [1, 2, 4]]])
         for i in range(-10, 10):
             self.assertEqual(nds[-i], [[1, 2, 4], [1, 2, 4]])
 
@@ -69,6 +81,8 @@ class MyTestCase(unittest.TestCase):
         nds = NdSpec("hello", item_shape=[1, 2, 3])
         print(nds)
         self.assertTrue(nds.is_item)
+        self.assertEqual(len(nds), 0)
+        self.assertEqual(list(nds), [[[["hello"] * 3] * 2]])
         for i in range(-10, 10):
             self.assertEqual(nds[i], [[["hello"] * 3] * 2])
 
