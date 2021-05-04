@@ -120,11 +120,11 @@ class NdSpec:
         else:
             return self.data.shape[0]
 
-    def __call__(self, axis: int):
+    def __getitem__(self, item):
         if self.is_item:
             return self.data.tolist()
         else:
-            return np.array(self.data[axis]).tolist()
+            return np.array(self.data[item]).tolist()
 
         # right-justified, so negative index is always definitive
         # when ndim is None, we assume the tensor of interest has the same ndim as self.data.shape[0]
@@ -133,6 +133,11 @@ class NdSpec:
         #
         # new_axis = axis - (ndim - self.data.shape[0])  # ignore leading axes (batch, channel, etc.)
         # return self.data[new_axis].tolist()
+    def __iter__(self):
+        if self.is_item:  # just one item
+            return (x for x in [self[0]])
+        else:
+            return (self[i] for i in range(len(self)))
 
     def __repr__(self):
         return f"NdSpec(data={self.data.tolist()}, item_shape={self.item_shape})"
