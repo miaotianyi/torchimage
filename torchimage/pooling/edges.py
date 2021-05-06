@@ -30,6 +30,3 @@ from scipy import ndimage
 from skimage import filters
 print(ndimage.sobel([[0, 0, 1], [0, 0, 1], [0, 0, 1]]))
 
-
-filters.sobel()
-

@@ -35,7 +35,7 @@ def _check_padding_mode(mode):
 class GenericPadNd(nn.Module):
     def __init__(self, pad_width, mode, constant_values=0, end_values=0.0, stat_length=None):
         super(GenericPadNd, self).__init__()
-        self.pad_width = NdSpec(pad_width, item_shape=(2,))
+        self.pad_width = NdSpec(pad_width, item_shape=[2])
         assert all(pw[0] >= 0 <= pw[1] for pw in self.pad_width)
         self.mode = NdSpec(mode)
         assert all(_check_padding_mode(m) for m in self.mode)
@@ -44,11 +44,16 @@ class GenericPadNd(nn.Module):
         self.stat_length = NdSpec(stat_length, item_shape=[2])
 
         # number of padded dimensions
-        # broadcast if ndim==0, always right-justify
+        # broadcast if ndim == 0, always right-justify
         # crop self left if self.ndim > x.ndim
         # ignore x left if self.ndim < x.ndim
-        self.ndim = max(map(len, [
+
+        # list of NdSpec lengths
+        ndim_list = list(map(len, [
             self.pad_width, self.mode, self.constant_values, self.end_values, self.stat_length]))
+        # unique NdSpec lengths that are non-broadcastable (length > 0)
+        pos_ndim_set = set(x for x in ndim_list if x > 0)
+
 
     def forward(self, x: torch.Tensor, axes=None):  # all at once; pad all specified dimensions
         # if axes are None, automatic right-justify, no error should be raised
