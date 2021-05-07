@@ -5,7 +5,7 @@ from torch.nn import functional as F
 
 from torchimage.utils import NdSpec
 from . import pad_1d
-from .utils import modify_idx, _check_padding, pad_width_format
+from .utils import modify_idx, _check_padding, pad_width_format, make_idx
 
 _padding_function_dict = {
     "replicate": pad_1d.replicate_1d,
@@ -64,6 +64,46 @@ class GenericPadNd(nn.Module):
         else:
             self.ndim = 0  # broadcastable
 
+    def _fill_value_1d(self, y, i, axis, idx):
+        pw = self.pad_width[i]
+        if pw[0] == pw[1] == 0:  # no padding required
+            return idx
+
+        mode = self.mode[i]
+        if mode == "empty":
+            return idx
+
+        # determine pad_func at each iteration
+        if callable(mode):
+            pad_func = mode
+        elif mode == "constant":
+            cv = self.constant_values[i]
+
+            def pad_func(x, idx, dim):
+                return pad_1d.constant_1d(x, idx, dim, before=cv[0], after=cv[1])
+        elif mode == "linear_ramp":  # linear ramp
+            ev = self.end_values[i]
+
+            def pad_func(x, idx, dim):
+                return pad_1d.linear_ramp_1d(x, idx, dim, before=ev[0], after=ev[1])
+        elif mode in _stat_padding_set:
+            sl = self.stat_length[i]
+
+            def pad_func(x, idx, dim):
+                return pad_1d.stat_1d(x, idx, dim, before=sl[0], after=sl[1], mode=mode)
+        elif mode not in _padding_function_dict:
+            raise ValueError(f"Unsupported padding mode {mode}")
+        else:  # no other keyword arguments required
+            pad_func = _padding_function_dict[mode]
+
+        # axis: dimension in x
+        pad_func(y, idx=idx, dim=axis)  # note that pad_func is still in-place
+
+        new_head = idx[axis].start - pw[0]
+        new_tail = idx[axis].stop + pw[1] + ((idx[axis].stop - idx[axis].start) % 2 if mode == "periodize" else 0)
+        idx = modify_idx(new_head, new_tail, idx=idx, dim=axis)
+        return idx
+
     def forward(self, x: torch.Tensor, axes=None):
         """
         Pads a tensor sequentially at all specified dimensions
@@ -103,9 +143,6 @@ class GenericPadNd(nn.Module):
             assert all(0 <= a <= x.ndim for a in axes)
             assert len(set(axes)) == len(axes)  # no repeated axes
 
-        # reverse mapping
-        axes_to_ind = {axes[i]: i for i in range(-len(axes), 0)}
-
         ndim_padded = min(x.ndim, self.ndim, len(axes))
 
         old_shape_vec = np.array(x.shape)
@@ -128,50 +165,49 @@ class GenericPadNd(nn.Module):
 
         y = torch.empty(tuple(new_shape_vec.tolist()), dtype=x.dtype, device=x.device)
         # copy original elements
-        idx = tuple([slice(start, stop) for start, stop in zip(head_vec.tolist(), tail_vec.tolist())])
+        idx = tuple([slice(start, stop) for start, stop in zip(head_vec, tail_vec)])
         y[idx] = x
 
         for i in range(-ndim_padded, 0):
-            pw = self.pad_width[i]
-            if pw[0] == pw[1] == 0:  # no padding required
-                continue
-
-            mode = self.mode[i]
-            if mode == "empty":
-                continue
-
-            # determine pad_func at each iteration
-            if callable(mode):
-                pad_func = mode
-            elif mode == "constant":
-                cv = self.constant_values[i]
-
-                def pad_func(x, idx, dim):
-                    return pad_1d.constant_1d(x, idx, dim, before=cv[0], after=cv[1])
-            elif mode == "linear_ramp":  # linear ramp
-                ev = self.end_values[i]
-
-                def pad_func(x, idx, dim):
-                    return pad_1d.linear_ramp_1d(x, idx, dim, before=ev[0], after=ev[1])
-            elif mode in _stat_padding_set:
-                sl = self.stat_length[i]
-
-                def pad_func(x, idx, dim):
-                    return pad_1d.stat_1d(x, idx, dim, before=sl[0], after=sl[1], mode=mode)
-            elif mode not in _padding_function_dict:
-                raise ValueError(f"Unsupported padding mode {mode}")
-            else:  # no other keyword arguments required
-                pad_func = _padding_function_dict[mode]
-
-            a = axes[i]  # axis (dimension) in x
-            y = pad_func(y, idx, a)  # note that pad_func is still in-place
-
-            new_head = idx[a].start - pw[0]
-            new_tail = idx[a].stop + pw[1] + ((idx[a].stop - idx[a].start) % 2 if mode == "periodize" else 0)
-            idx = modify_idx(new_head, new_tail, idx=idx, dim=a)
+            idx = self._fill_value_1d(y, i=i, axis=axes[i], idx=idx)
 
         return y
 
     def pad_axis(self, x: torch.Tensor, axis: int):  # pad a specific axis
-        pass
+        """
+        Pad a specific axis according to predefined padder parameters
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor to be padded.
+
+        axis : int
+            The axis in x to be padded. Can be a positive or negative index.
+
+        Returns
+        -------
+        y : torch.Tensor
+            Padded tensor.
+        """
+        assert -x.ndim <= axis < x.ndim  # is valid index
+        axis = axis if axis < 0 else axis - x.ndim  # right-justify with negative index
+
+        pw = self.pad_width[axis]
+        if pw[0] == pw[1] == 0:  # no padding required
+            return x
+
+        head = pw[0]
+        tail = head + x.shape[axis]
+        length = tail + pw[1]
+
+        idx = make_idx(head, tail, dim=axis, ndim=x.ndim)
+
+        new_shape_vec = list(x.shape)
+        new_shape_vec[axis] = length
+
+        y = torch.empty(tuple(new_shape_vec), dtype=x.dtype, device=x.device)
+        y[idx] = x
+        self._fill_value_1d(y, i=axis, axis=axis, idx=idx)
+        return y
 
