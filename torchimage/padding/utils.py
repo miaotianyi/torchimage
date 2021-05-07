@@ -17,7 +17,7 @@ def make_idx(*args, dim, ndim):
         constructor arguments for the slice object at target axis
 
     dim : int
-        target axis
+        target axis; can be negative or positive
 
     ndim : int
         total number of axes
@@ -27,6 +27,8 @@ def make_idx(*args, dim, ndim):
     idx : tuple of slice
         Can be used to index np.ndarray and torch.Tensor
     """
+    if dim < 0:
+        dim = ndim + dim
     return (slice(None), ) * dim + (slice(*args), ) + (slice(None), ) * (ndim - dim - 1)
 
 
