@@ -238,8 +238,6 @@ def morphological_gradient(image, kernel_size=3, grayscale=True):
     return dilate(image) - erode(image)
 
 
-run_torch_edge_detect()
-
 '''
 def get_canny(image, grayscale=True, sigma=1.0, low_threshold=None, high_threshold=None, mask=None, use_quantiles=False):
     """
