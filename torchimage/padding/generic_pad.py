@@ -64,7 +64,31 @@ class GenericPadNd(nn.Module):
         else:
             self.ndim = 0  # broadcastable
 
-    def _fill_value_1d(self, y, i, axis, idx):
+    def _fill_value_1d(self, y: torch.Tensor, i: int, axis: int, idx):
+        """
+        Fill padding values in place using self (padder) specification
+        at ``i`` along y (tensor) dimension ``axis``.
+
+        Parameters
+        ----------
+        y : torch.Tensor
+            An empty tensor enclosing a ground truth region ``y[idx]``
+
+        i : int
+            Axis for padder (may be different from axis); can be positive or negative
+
+        axis : int
+            Axis for tensor (may be different from axis); can be positive or negative
+
+        idx : tuple of slice
+            Slice for the region of ground truth.
+
+        Returns
+        -------
+        idx : tuple of slice
+            Modified idx that now marks the recently padded regions
+            as ground truth as well.
+        """
         pw = self.pad_width[i]
         if pw[0] == pw[1] == 0:  # no padding required
             return idx
@@ -100,7 +124,9 @@ class GenericPadNd(nn.Module):
         pad_func(y, idx=idx, dim=axis)  # note that pad_func is still in-place
 
         new_head = idx[axis].start - pw[0]
-        new_tail = idx[axis].stop + pw[1] + ((idx[axis].stop - idx[axis].start) % 2 if mode == "periodize" else 0)
+        new_tail = idx[axis].stop + pw[1]
+        if mode == "periodize":
+            new_tail += (idx[axis].stop - idx[axis].start) % 2
         idx = modify_idx(new_head, new_tail, idx=idx, dim=axis)
         return idx
 
