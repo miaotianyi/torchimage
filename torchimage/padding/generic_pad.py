@@ -209,11 +209,13 @@ class GenericPadNd(nn.Module):
             assert all(0 <= a <= x.ndim for a in axes)
             assert len(set(axes)) == len(axes)  # no repeated axes
 
-        ndim_padded = min(x.ndim, self.ndim, len(axes))
+        ndim_padded = min(x.ndim, len(axes))
+        if self.ndim > 0:
+            ndim_padded = min(ndim_padded, self.ndim)
 
-        old_shape_vec = np.array(x.shape)
-        head_vec = np.zeros(x.ndim)  # equal to pad_before
-        pad_after_vec = np.zeros(x.ndim)
+        old_shape_vec = np.array(x.shape, dtype=int)
+        head_vec = np.zeros(x.ndim, dtype=int)  # equal to pad_before
+        pad_after_vec = np.zeros(x.ndim, dtype=int)
 
         for i in range(-ndim_padded, 0):
             pw = self.pad_width[i]
