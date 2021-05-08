@@ -35,6 +35,46 @@ def _check_padding_mode(mode):
 
 class GenericPadNd(nn.Module):
     def __init__(self, pad_width, mode, constant_values=0, end_values=0.0, stat_length=None):
+        """
+        Parameters
+        ----------
+        pad_width : int, pair of int, list of pair of int
+            Padding width specification.
+
+            If it's a single integer ``width``, all axes of interest
+            (specified by the ``axes`` parameter in forward function)
+            will have ``width`` padded entries before and after the ground
+            truth region.
+
+            If it's a pair of integers ``(before, after)``, then every
+            axis of interest will have ``before`` padded entries before
+            and ``after`` padded entries after the ground truth region.
+
+            If it's a list of pairs of integers, it's interpreted as a
+            right-justified, left-to-right, and nested NdSpec format:
+            ``[..., (before_{-2}, after_{-2}), (before_{-1}, after_{-1})]``
+
+        mode : str, <function>, list of str or <function>
+            Padding mode or padding function.
+
+        constant_values : float, pair of float, list of pair of float
+            Constant value for padding if mode is ``constant``.
+
+        end_values : float, pair of float, list of pair of float
+            Used in ``linear_ramp``. The values used for the ending value of the linear ramp
+            and that will form the edge of the padded array. Default: 0
+
+        stat_length : None, int, pair of int, list of pair of int
+            Used in "maximum", "mean", "median", and "minimum".
+            Number of values at edge of each axis used to calculate the statistic value.
+            Default: None.
+
+            If None, all values at the axis will be used for calculation.
+            (This is computationally expensive, not recommended.)
+
+            For each axis, this number will be clipped by ``(1, length)`` where
+            ``length`` is the side length of the original tensor.
+        """
         super(GenericPadNd, self).__init__()
         self.pad_width = NdSpec(pad_width, item_shape=[2])
         assert all(pw[0] >= 0 <= pw[1] for pw in self.pad_width)
