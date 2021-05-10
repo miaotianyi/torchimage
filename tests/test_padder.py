@@ -22,7 +22,7 @@ class MyTestCase(unittest.TestCase):
         mode = "constant"
         for _ in range(self.n_trials):
             ndim = np.random.randint(1, 6)
-            shape = np.random.randint(1, 7, ndim).tolist()
+            shape = np.random.randint(1, 7, ndim)
 
             # fine for pad width to exceed original length
             pad_width_scalar = np.random.randint(0, 10)
@@ -75,7 +75,7 @@ class MyTestCase(unittest.TestCase):
         mode_np = "edge"
         for _ in range(self.n_trials):
             ndim = np.random.randint(1, 6)
-            shape = np.random.randint(1, 7, ndim).tolist()
+            shape = np.random.randint(1, 7, ndim)
 
             # fine for pad width to exceed original length
             pad_width_scalar = np.random.randint(0, 10)
@@ -91,18 +91,11 @@ class MyTestCase(unittest.TestCase):
                     actual = GenericPadNd(pad_width=pw, mode=mode_ti)(arr_2).numpy()
                     self.assertArrayEqual(expected, actual)
 
-    @unittest.skip
-    def test_pad_axis(self):
-        padder = GenericPadNd(pad_width=[2, 10], mode="reflect", constant_values=[[1, -1], [2, -2]])
-        a = torch.arange(24).view(4, 6).float()
-        print(a)
-        print(padder.pad_axis(a, axis=0))
-
     def test_smooth_padding(self):
         mode = "smooth"
-        for _ in range(self.n_trials):
+        for i in range(self.n_trials):
             ndim = np.random.randint(1, 6)
-            shape = np.random.randint(2, 7, ndim).tolist()
+            shape = np.random.randint(2, 7, ndim)
 
             # fine for pad width to exceed original length
             # we only test compatibility for meaningful values
@@ -128,9 +121,45 @@ class MyTestCase(unittest.TestCase):
 
             for pw in [pad_width_scalar, pad_width_pair, pad_width_list]:
                 with self.subTest(shape=shape, pad_width=pw):
+                    # print(i)
+                    # print("calculating expected")
                     expected = pywt.pad(arr_1, pw, mode=mode)
+                    # print("calculating actual")
                     actual = GenericPadNd(pad_width=pw, mode=mode)(arr_2).numpy()
+                    # print("Done.")
                     self.assertArrayEqual(expected, actual)
+
+    def test_circular(self):
+        for mode_ti, mode_wt in [
+            ["circular", "periodic"],
+            ["periodize", "periodization"],
+            ["symmetric"] * 2,
+            ["reflect"] * 2,
+            ["antisymmetric"] * 2,
+            ["odd_reflect", "antireflect"]
+        ]:
+            for _ in range(self.n_trials):
+                ndim = np.random.randint(1, 6)
+                shape = np.random.randint(1, 7, ndim)
+
+                # Note: cannot exceed original length
+                # otherwise numpy padding runs into a known bug
+                pad_width_scalar = np.random.randint(1, min(shape) + 1)
+                pad_width_pair = np.random.randint(1, min(shape) + 1, 2).tolist()
+                pad_width_list = np.random.randint(1, np.tile((shape + 1).reshape(-1, 1), [1, 2])).tolist()
+
+                arr_1 = np.random.rand(*shape)
+                arr_2 = torch.from_numpy(arr_1)
+
+                for pw in [pad_width_scalar, pad_width_pair, pad_width_list]:
+                    with self.subTest(mode=mode_ti, shape=shape, pad_width=pw):
+                        print(f"{mode_ti=}, {shape=}, {pw=}")
+                        print("calculating expected")
+                        expected = pywt.pad(arr_1, pad_widths=pw, mode=mode_wt)
+                        print("calculating actual")
+                        actual = GenericPadNd(pad_width=pw, mode=mode_ti)(arr_2).numpy()
+                        print("Done.")
+                        self.assertArrayEqual(expected, actual)
 
 
 if __name__ == '__main__':

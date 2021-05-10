@@ -267,6 +267,10 @@ def odd_reflect_1d(x, idx, dim):
 
     # cache not implemented
     length = tail - head  # length of ground truth tensor at dim
+
+    if length == 1:
+        return replicate_1d(x, idx=idx, dim=dim)
+
     length_flipped = length - 1  # reflect discards 1 border value
 
     curr = head  # should pad before
