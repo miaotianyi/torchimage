@@ -157,6 +157,6 @@ empty                N/A             N/A             empty                      
 <function>           N/A             N/A             <function>                      N/A
 =============        =============   ===========     ==============================  =======
 """
-from .tensor_pad import pad
+from .generic_pad import GenericPadNd
 
-__all__ = ["pad"]
+__all__ = ["GenericPadNd"]

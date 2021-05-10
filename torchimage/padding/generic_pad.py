@@ -1,11 +1,10 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.nn import functional as F
 
 from torchimage.utils import NdSpec
 from . import pad_1d
-from .utils import modify_idx, _check_padding, pad_width_format, make_idx
+from .utils import modify_idx, make_idx
 
 _padding_function_dict = {
     "replicate": pad_1d.replicate_1d,
