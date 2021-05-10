@@ -286,6 +286,9 @@ def odd_reflect_1d(x, idx, dim):
 def smooth_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
+    if tail - head == 1:
+        return replicate_1d(x, idx=idx, dim=dim)
+
     def f(*args):  # fast idx modification
         return modify_idx(*args, idx=idx, dim=dim)
 
