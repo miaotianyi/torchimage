@@ -72,14 +72,14 @@ x : torch.Tensor
 
 import torch
 
-from .utils import _make_idx, _modify_idx
+from .utils import make_idx, modify_idx
 
 
 def replicate_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     if head > 0:  # should pad before
         x[f(head)] = x[f(head, head + 1)]
@@ -99,7 +99,7 @@ def circular_1d(x, idx, dim):
         return replicate_1d(x, idx, dim)
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     curr = head  # should pad before
     while curr > 0:
@@ -120,7 +120,7 @@ def periodize_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     length = tail - head  # length of ground truth tensor at dim
 
@@ -132,7 +132,7 @@ def periodize_1d(x, idx, dim):
         # regardless of padding width
         # for example, even with padding width (0, 0),
         # (1, 2, 3) will still turn into (1, 2, 3, 3)
-        new_idx = _modify_idx(head, tail + 1, idx=idx, dim=dim)
+        new_idx = modify_idx(head, tail + 1, idx=idx, dim=dim)
         x[f(tail, tail + 1)] = x[f(tail - 1, tail)]  # replicate
         return circular_1d(x, new_idx, dim)
 
@@ -145,10 +145,10 @@ def symmetric_1d(x, idx, dim, negate=False):
         return replicate_1d(x, idx, dim)
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     def g(*args):  # fast empty idx creation to index flipped cache
-        return _make_idx(*args, dim=dim, ndim=x.ndim)
+        return make_idx(*args, dim=dim, ndim=x.ndim)
 
     def h(a):  # conditionally flip the values of a tensor across 0
         return -a if negate else a
@@ -197,10 +197,10 @@ def reflect_1d(x, idx, dim):
         return circular_1d(x, idx, dim)
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     def g(*args):  # fast empty idx creation to index flipped cache
-        return _make_idx(*args, dim=dim, ndim=x.ndim)
+        return make_idx(*args, dim=dim, ndim=x.ndim)
 
     length_flipped = length - 2  # reflect discards 2 border values
 
@@ -241,7 +241,7 @@ def odd_symmetric_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     # cache not implemented
     length = tail - head  # length of ground truth tensor at dim
@@ -263,10 +263,14 @@ def odd_reflect_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     # cache not implemented
     length = tail - head  # length of ground truth tensor at dim
+
+    if length == 1:
+        return replicate_1d(x, idx=idx, dim=dim)
+
     length_flipped = length - 1  # reflect discards 1 border value
 
     curr = head  # should pad before
@@ -286,8 +290,11 @@ def odd_reflect_1d(x, idx, dim):
 def smooth_1d(x, idx, dim):
     head, tail = idx[dim].start, idx[dim].stop
 
+    if tail - head == 1:
+        return replicate_1d(x, idx=idx, dim=dim)
+
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     def _arange(start, end, step):  # fast arange
         return torch.arange(start, end, step, dtype=x.dtype, device=x.device).view([-1] + [1] * (x.ndim - dim - 1))
@@ -303,14 +310,11 @@ def smooth_1d(x, idx, dim):
     return x
 
 
-# TODO: test linear ramp and constant 1d
-
-
 def linear_ramp_1d(x, idx, dim, before, after):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     def _linspace(start, end, steps, s):  # fast linspace, s is slice object
         return torch.linspace(start, end, steps, dtype=x.dtype, device=x.device)[s].view([-1] + [1] * (x.ndim - dim - 1))
@@ -330,7 +334,7 @@ def constant_1d(x, idx, dim, before, after):
     head, tail = idx[dim].start, idx[dim].stop
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     if head > 0:  # should pad before
         x[f(head)] = before
@@ -354,7 +358,7 @@ def stat_1d(x, idx, dim, before, after, mode):
     length = tail - head
 
     def f(*args):  # fast idx modification
-        return _modify_idx(*args, idx=idx, dim=dim)
+        return modify_idx(*args, idx=idx, dim=dim)
 
     sf = _stat_funcs[mode]  # statistic function
 

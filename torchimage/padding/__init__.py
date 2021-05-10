@@ -96,7 +96,10 @@ Padding Modes
 
 ``"smooth"`` - extend the signal according to the first derivatives calculated on the edges
     (straight line extrapolation)
-    ``a-4(b-a) a-3(b-a) a-2(b-a) a-(b-a) | a b c d | d+(d-c) d+2(d-c) d+3(d-c) d+4(d-c)
+    ``a-4(b-a) a-3(b-a) a-2(b-a) a-(b-a) | a b c d | d+(d-c) d+2(d-c) d+3(d-c) d+4(d-c)``
+
+    If there's only 1 element, smooth should behave the same as replicate because we can
+    only assume a first derivative of 0.
 
 ``"linear_ramp"`` - pads with the linear ramp between end value and the array border value.
     ``| a b c d | d+s d+2s ... d+n*s e`` where ``e`` is the end value, ``n`` is the number of
@@ -154,6 +157,6 @@ empty                N/A             N/A             empty                      
 <function>           N/A             N/A             <function>                      N/A
 =============        =============   ===========     ==============================  =======
 """
-from .tensor_pad import pad
+from .generic_pad import GenericPadNd
 
-__all__ = ["pad"]
+__all__ = ["GenericPadNd"]

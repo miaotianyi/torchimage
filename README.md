@@ -19,3 +19,17 @@ Motivation:
 3. Many algorithms cannot process high-dimensional data
    (such as image batches or video batches) and therefore do not
    scale.
+
+4. Being written in PyTorch means that torchimage can be
+   run on both CPU and GPU using the same code, eliminating
+   any need to adapt code implementation.
+   
+5. One of the main reasons for inconsistent behaviors in
+   different image processing libraries is that some functions
+   are implemented slightly differently, the most prominent
+   example being padding (extending border of a signal). Not
+   all packages have the same set of padding options; to make
+   things worse, the same name may refer to different things.
+   torchimage therefore aims to provide a standard for all
+   methods to compare with.
+   

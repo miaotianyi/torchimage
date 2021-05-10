@@ -58,7 +58,8 @@ class GaussianPool(nn.Module):
         x = torch.arange(kernel_size) - kernel_size // 2
         x = x.double()  # use double for higher precision
         # device and dtype will be manually adjusted later during inference
-        x = 1. / (sigma * math.sqrt(2 * math.pi)) * torch.exp(-x ** 2 / (2 * sigma ** 2))
+        # no need for sqrt(2pi) because the kernel is normalized anyway
+        x = 1. / sigma * torch.exp(-x ** 2 / (2 * sigma ** 2))
         return x / x.sum()  # normalize
 
     def __init__(self, kernel_size, sigma, stride):
