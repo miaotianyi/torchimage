@@ -1,5 +1,6 @@
 # torchimage
 [![Documentation Status](https://readthedocs.org/projects/torchimage/badge/?version=latest)](https://torchimage.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.com/miaotianyi/torchimage.svg?branch=main)](https://travis-ci.com/miaotianyi/torchimage)
 
 PyTorch utilities for classic image processing and evaluation
 
