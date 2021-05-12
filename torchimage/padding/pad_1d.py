@@ -148,7 +148,7 @@ def symmetric_1d(x, idx, dim, negate=False):
         return modify_idx(*args, idx=idx, dim=dim)
 
     def g(*args):  # fast empty idx creation to index flipped cache
-        return make_idx(*args, dim=dim, ndim=x.ndim)
+        return make_idx(*args, dim=dim, ndim=x.get_ndim)
 
     def h(a):  # conditionally flip the values of a tensor across 0
         return -a if negate else a
@@ -200,7 +200,7 @@ def reflect_1d(x, idx, dim):
         return modify_idx(*args, idx=idx, dim=dim)
 
     def g(*args):  # fast empty idx creation to index flipped cache
-        return make_idx(*args, dim=dim, ndim=x.ndim)
+        return make_idx(*args, dim=dim, ndim=x.get_ndim)
 
     length_flipped = length - 2  # reflect discards 2 border values
 
@@ -297,7 +297,7 @@ def smooth_1d(x, idx, dim):
         return modify_idx(*args, idx=idx, dim=dim)
 
     def _arange(start, end, step):  # fast arange
-        return torch.arange(start, end, step, dtype=x.dtype, device=x.device).view([-1] + [1] * (x.ndim - dim - 1))
+        return torch.arange(start, end, step, dtype=x.dtype, device=x.device).view([-1] + [1] * (x.get_ndim - dim - 1))
 
     if head > 0:  # should pad before
         dist = _arange(head, 0, -1)  # distance from head
@@ -317,7 +317,7 @@ def linear_ramp_1d(x, idx, dim, before, after):
         return modify_idx(*args, idx=idx, dim=dim)
 
     def _linspace(start, end, steps, s):  # fast linspace, s is slice object
-        return torch.linspace(start, end, steps, dtype=x.dtype, device=x.device)[s].view([-1] + [1] * (x.ndim - dim - 1))
+        return torch.linspace(start, end, steps, dtype=x.dtype, device=x.device)[s].view([-1] + [1] * (x.get_ndim - dim - 1))
 
     if head > 0:  # should pad before
         dist = _linspace(0, 1, head + 1, slice(None, -1))  # distance from left end
