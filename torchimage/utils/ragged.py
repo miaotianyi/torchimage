@@ -250,13 +250,7 @@ def expand_ragged_ndarray(data, old_shape, new_shape):
     return data, final_shape
 
 
-
-
 class RaggedArray:
-    def __init__(self, data, strict=False):
-        self.strict = strict
-        self.shape = get_ragged_ndarray(data, strict=self.strict)
-
     @staticmethod
     def get_max_depth(data):
         shape = get_shape(data)
@@ -268,36 +262,3 @@ class RaggedArray:
             return len(shape)
 
         return 1 + max(RaggedArray.get_max_depth(item) for item in data)
-
-    @staticmethod
-    def expand(data, new_shape):
-        data, old_shape = get_ragged_ndarray(data, strict=False)
-        # input is now a valid ragged ndarray
-
-        if 0 in new_shape:  # empty array with nontrivial shape
-            return np.empty(new_shape)
-
-        depth = RaggedArray.get_max_depth(data)
-        if depth < len(new_shape):
-            data = RaggedArray.expand(data, new_shape[-depth:])
-        elif depth == len(new_shape):
-            pass
-        else:
-            pass
-
-
-    @staticmethod
-    def expand_helper(data, new_shape):
-        # do not check for depth, always right-aligned.
-        depth = 0
-        if depth < len(new_shape):
-            RaggedArray.expand(data, new_shape[-depth:])
-
-        return data
-
-
-def broadcast_ragged(array):
-    pass
-    # return array, shape
-
-
