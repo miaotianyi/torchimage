@@ -161,6 +161,9 @@ def get_ragged_ndarray(data, strict=True):
 
 
 def recursive_expand(arr, target_shape):
+    # recursively expand the ragged ndarray according to target_shape
+    # also returns a 3rd result (whether the array is indeed modified)
+
     # shape has the same depth as arr
     if not target_shape:  # reaches leaf node
         return arr, target_shape, False

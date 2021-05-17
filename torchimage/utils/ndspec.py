@@ -1,7 +1,6 @@
 """
 General utilities for torchimage
 """
-import numpy as np
 from .ragged import get_ragged_ndarray, expand_ragged_ndarray
 
 
@@ -10,6 +9,11 @@ class NdSpec:
     N-dimensional specification data, which represents parameters
     like ``kernel_size`` that can either be a tuple or a scalar to
     be broadcast.
+
+    The input can also be a filter (list of float) or a list of filters,
+    which couldn't be known until runtime.
+
+    NdSpec is
 
     In neural networks and n-dimensional arrays, sometimes
     the same set of parameters have different values for different
