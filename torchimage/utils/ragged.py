@@ -84,13 +84,18 @@ def get_ragged_ndarray(data, strict=True):
 
     strict : bool
         If True, raises an error when sibling items different depths. Otherwise,
-        attempt to broadcast items with smaller depth, e.g. [a, [b]] -> [[a], [b]]
+        attempt to broadcast items with smaller depth, e.g. [a, [b]] -> [[a], [b]].
+
+        With tree terminology, the shallower leaves are "lifted" to the maximum
+        depth and new trivial nodes are filled in between.
 
     Returns
     -------
     data : array_like
         The same ragged ndarray. It is modified only when ``strict=False``
-        and sibling items have different lengths (automatically broadcast)
+        and sibling items have different lengths (automatically broadcast).
+
+        The broadcasting process uses tuple type for its immutability.
 
     shape : tuple of int
         The shape of the ragged ndarray; represented similarly to that of
@@ -98,7 +103,6 @@ def get_ragged_ndarray(data, strict=True):
 
         If array items have different lengths at a certain axis, the shape
         at that axis is defined as -1.
-
     """
     if torch.is_tensor(data):
         # torch Tensor cannot be ragged
@@ -143,41 +147,42 @@ def get_ragged_ndarray(data, strict=True):
     item_shape = [-1] * ndim
 
     for i in range(ndim):
-        item_shape_set = {s[i] for s in item_shape_list}  # set of lengths at axis i
-        if len(item_shape_set) > 1:
+        length_i_set = {s[i] for s in item_shape_list}  # set of lengths at axis i
+        if len(length_i_set) > 1:
             item_shape[i] = -1
         else:
-            item_shape[i] = next(iter(item_shape_set))
+            item_shape[i] = next(iter(length_i_set))
 
     return data, tuple([len(data)] + item_shape)
 
 
-def recursive_expand(arr, shape):
+def recursive_expand(arr, target_shape):
     # shape has the same depth as arr
-    if not shape:  # reaches leaf node
-        return arr, shape
+    if not target_shape:  # reaches leaf node
+        return arr, target_shape
 
     if torch.is_tensor(arr):
-        result = arr.expand(*shape)
+        result = arr.expand(*target_shape)
         return result, tuple(result.shape)
 
     if isinstance(arr, np.ndarray):
         if np.issubdtype(arr.dtype, np.number) or np.issubdtype(arr.dtype, np.bool_):
-            shape = [old if new == -1 else new for old, new in zip(arr.shape, shape)]
-            result = np.broadcast_to(arr, shape=shape)
-            return result, shape
+            target_shape = [old if new == -1 else new for old, new in zip(arr.shape, target_shape)]
+            result = np.broadcast_to(arr, shape=target_shape)
+            return result, tuple(target_shape)
 
+    # actual shape before broadcast
     shape = get_shape(arr)
 
     if len(shape) == 0 or 0 in shape:
         # scalar, ndim == 0 (ndim = len(shape)), or:
         # empty array with nonempty shape (e.g. shape=[0, 10])
-        return arr, shape
+        return arr, target_shape
 
     item_list = []
     item_shape_list = []
     for item in arr:
-        item, item_shape = recursive_expand(item, shape=shape[1:])
+        item, item_shape = recursive_expand(item, target_shape=target_shape[1:])
         item_list.append(item)
         item_shape_list.append(item_shape)
 
@@ -197,44 +202,56 @@ def recursive_expand(arr, shape):
             item_shape[i] = next(iter(item_shape_set))
 
     # broadcast (expand) this dimension
-    if shape[0] == -1 or shape[0] == len(arr):  # no need to expand
+    if target_shape[0] == -1 or target_shape[0] == len(arr):  # no need to expand
         return arr, tuple([len(arr)] + item_shape)
-    elif shape[0] == 0:
+    elif target_shape[0] == 0:
         return (), tuple([0] + item_shape)
     elif len(arr) == 1:  # singleton dimension; shape[0] is positive int
-        return arr * shape[0], tuple([shape[0]] + item_shape)
+        return arr * target_shape[0], tuple([target_shape[0]] + item_shape)
     else:
-        raise ValueError(f"Non-singleton dimension {len(arr)} must match target length {shape[0]}")
+        raise ValueError(f"Non-singleton dimension {len(arr)} must match target length {target_shape[0]}")
 
 
 def expand_ragged_ndarray(data, old_shape, new_shape):
     """
-    Expand the singleton dimensions in a ragged ndarray
+    Expand the singleton dimensions in a ragged ndarray.
 
-    of old_shape to new_shape.
-
-
-    -1 in new shape means that the length at that axis doesn't matter.
-
+    The input ragged ndarray of shape ``old_shape`` will be
+    broadcast to ``new_shape``. This function is similar to
+    ``torch.expand`` and ``numpy.broadcast_to``.
 
     Parameters
     ----------
     data : array_like
-    old_shape
-    new_shape
+        Input ragged ndarray.
+
+    old_shape : tuple of int
+        Shape of the input ragged ndarray.
+
+        data and old_shape can be obtained from `get_ragged_ndarray`.
+
+    new_shape : tuple of int
+        New shape that the ragged ndarray should be broadcast to.
+
+        -1 at any axis in new shape means the original length
+        at that dimension will remain the same.
 
     Returns
     -------
-    data
+    data : array_like
+        Expanded ragged ndarray
 
-    final_shape
+    final_shape : tuple of int
+        The shape of the expanded ragged ndarray
     """
+    old_shape = tuple(int(x) for x in old_shape)
+    new_shape = tuple(int(x) for x in new_shape)
 
     old_ndim = len(old_shape)
     new_ndim = len(new_shape)
 
     if old_ndim < new_ndim:
-        data, final_shape = recursive_expand(data, shape=new_shape[-old_ndim:])
+        data, final_shape = recursive_expand(data, target_shape=new_shape[new_ndim-old_ndim:])
         for new_length in new_shape[:new_ndim-old_ndim][::-1]:
             if new_length == -1:  # no specification, add a trivial wrapper
                 data = (data, )
@@ -243,22 +260,7 @@ def expand_ragged_ndarray(data, old_shape, new_shape):
                 data = (data, ) * new_length
                 final_shape = (new_length, ) + final_shape
     elif old_ndim == new_ndim:
-        data, final_shape = recursive_expand(data, shape=new_shape)
+        data, final_shape = recursive_expand(data, target_shape=new_shape)
     else:  # old_ndim > new_ndim
-        data, final_shape = recursive_expand(data, shape=(-1,) * (old_ndim - new_ndim) + new_shape)
-
+        data, final_shape = recursive_expand(data, target_shape=(-1,) * (old_ndim - new_ndim) + new_shape)
     return data, final_shape
-
-
-class RaggedArray:
-    @staticmethod
-    def get_max_depth(data):
-        shape = get_shape(data)
-
-        if len(shape) == 0:  # scalar, ndim == 0 (ndim = len(shape))
-            return 0
-
-        if 0 in shape:  # empty array with nonempty shape (e.g. shape=[0, 10])
-            return len(shape)
-
-        return 1 + max(RaggedArray.get_max_depth(item) for item in data)
