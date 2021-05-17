@@ -20,8 +20,10 @@ class MyTestCase(unittest.TestCase):
 
     def test_get_shape_2(self):
         f = get_ragged_ndarray
-        with self.assertRaises(ValueError):
-            data, shape = f([1, [2, 3]], strict=True)
+        data, shape = f([1, [2, 3]], strict=True)
+        self.assertEqual(data[0], 1)
+        self.assertEqual(data[1], [2, 3])
+        self.assertEqual(shape, (2,))
 
         original = [np.random.rand(np.random.randint(0, 8)) for _ in range(100)]
         data, shape = f(original, strict=False)
@@ -41,13 +43,18 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(data, (((1, 2),), ((3, 4), (5, 6))))
         self.assertEqual(shape, (2, -1, 2))
 
+        source = ([1, 2], [3, 4], [5, 6])
+        data, shape = f(source, strict=False)
+        self.assertEqual(data, source)
+        self.assertEqual(shape, (3, 2))
+
     def test_expand(self):
         for new_shape in [
             [1, 2, -1],
             [1, -1, -1]
         ]:
             arr, shape = expand_ragged_ndarray([[1], [2, 3]], old_shape=[2, -1], new_shape=new_shape)
-            self.assertEqual(arr, (((1,), (2, 3)),))
+            self.assertEqual(arr, ([[1], [2, 3]],))
             self.assertEqual(shape, (1, 2, -1))
 
         arr, shape = expand_ragged_ndarray([[1], [2], [3]], old_shape=[-1, -1], new_shape=[1, 3, 6])
@@ -66,15 +73,15 @@ class MyTestCase(unittest.TestCase):
         data = [[1, 2], [3, 4, 5], [6, 7, 8, 9]]
         arr, shape = get_ragged_ndarray(data, strict=True)
         actual_arr, actual_shape = expand_ragged_ndarray(arr, shape, new_shape=[-1])
-        self.assertEqual(actual_arr, tuple(tuple(x) for x in data))
+        self.assertEqual(actual_arr, data)  # should remain unchanged
         self.assertEqual(actual_shape, (3, -1))
 
     def test_filter_list_2(self):
-        data = [[1, 2], [3, 4], [5, 6]]
+        data = [[1, 2], (3, 4), np.array([5, 6]), torch.tensor([7., 8.], requires_grad=True)]
         arr, shape = get_ragged_ndarray(data, strict=True)
         actual_arr, actual_shape = expand_ragged_ndarray(arr, shape, new_shape=[-1])
-        self.assertEqual(actual_arr, tuple(tuple(x) for x in data))
-        self.assertEqual(actual_shape, (3, 2))
+        self.assertEqual(data, actual_arr)
+        self.assertEqual((4, 2), actual_shape)
 
 
 if __name__ == '__main__':

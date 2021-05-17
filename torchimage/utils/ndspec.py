@@ -2,6 +2,7 @@
 General utilities for torchimage
 """
 import numpy as np
+from .ragged import get_ragged_ndarray, expand_ragged_ndarray
 
 
 class NdSpec:
@@ -32,7 +33,7 @@ class NdSpec:
     In separable convolution, for example, we might want to pass
     in a list of filters (1d arrays of floats). Since filters can have
     different sizes, each filter is regarded as a Python object so
-    ``item_shape == ()``.
+    ``item_shape == (-1)``.
 
     **NdSpec enforces a nested, right-justified, left-to-right storage
     format** when a list of items is passed.
@@ -89,30 +90,13 @@ class NdSpec:
             provided. Otherwise it will cause an error.
         """
         self.item_shape = tuple(int(x) for x in item_shape)
-        # using object dtype allows full ndarray functionality
-        # (mainly recursive shape-finding)
-        # which is not readily available in python lists.
-        self.data = np.array(data, dtype=object)
-        if self.data.size == 0:
-            raise ValueError(f"Input data must be nonempty, got {data} instead")
+        data, shape = get_ragged_ndarray(data, strict=True)
+        data, shape = expand_ragged_ndarray(data, old_shape=shape, new_shape=self.item_shape)
 
-        if self.data.ndim == len(self.item_shape):
-            if self.data.shape == self.item_shape:
-                self.is_item = True  # data is item
-            else:
-                raise ValueError(f"Incompatible data shape {self.data.shape} and item shape {self.item_shape}")
-        elif self.data.ndim < len(self.item_shape):
-            # requires extra broadcasting
-            reps = np.array(self.item_shape)
-            if self.data.ndim > 0:
-                reps[-self.data.ndim:] = 1
-            self.data = np.tile(self.data, reps)
-
-            assert self.data.shape == self.item_shape
-            self.is_item = True  # data is item now
-        else:  # self.data.ndim > len(self.item_shape)
-            assert self.data.shape[1:] == self.item_shape
-            self.is_item = False
+        self.data = data
+        self.ndim = len(shape)
+        self.shape = shape
+        self.is_item = self.ndim == len(item_shape)
 
     def __len__(self):
         """
@@ -123,17 +107,23 @@ class NdSpec:
         if self.is_item:
             return 0
         else:
-            return self.data.shape[0]
+            return self.shape[0]
 
-    def __getitem__(self, item):
+    def __getitem__(self, *args):
         if self.is_item:
-            return self.data.tolist()
+            return self.data
         else:
-            return np.array(self.data[item]).tolist()
+            if len(args) > self.ndim - len(self.item_shape):
+                raise IndexError(f"Too many indices {args} for ndim={self.ndim} and item_ndim={len(self.item_shape)}")
+
+            ret = self.data
+            for i in args:
+                ret = ret[i]
+            return ret
 
     def __iter__(self):
         if self.is_item:  # just one item
-            return (x for x in [self[0]])
+            return (x for x in [self.data])
         else:
             return (self[i] for i in range(len(self)))
 

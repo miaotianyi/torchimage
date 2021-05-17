@@ -22,7 +22,8 @@ class MyTestCase(unittest.TestCase):
                 self.assertFalse(nds.is_item)
                 self.assertEqual(len(nds), len(filter_list))
                 for i in range(-len(filter_list), len(filter_list)):
-                    self.assertTrue(np.array_equal(nds[i], filter_list[i]))
+                    # these objects shouldn't change at all
+                    self.assertIs(filter_list[i], nds[i])
 
     def test_empty(self):
         with self.assertRaises(ValueError):
@@ -59,25 +60,34 @@ class MyTestCase(unittest.TestCase):
         nds = NdSpec(423, item_shape=[2])
         self.assertTrue(nds.is_item)
         self.assertEqual(len(nds), 0)
-        self.assertEqual([x for x in nds], [[423, 423]])
+        self.assertEqual([x for x in nds], [(423, 423)])
         for i in range(-10, 10):
-            self.assertEqual(nds[-i], [423, 423])
+            self.assertEqual(nds[-i], (423, 423))
 
     def test_broadcast_2(self):
         nds = NdSpec([1, 2, 4], item_shape=[2, 3])
         self.assertTrue(nds.is_item)
         self.assertEqual(len(nds), 0)
-        self.assertEqual(list(nds), [[[1, 2, 4], [1, 2, 4]]])
+        self.assertEqual(list(nds), [([1, 2, 4], [1, 2, 4])])
         for i in range(-10, 10):
-            self.assertEqual(nds[-i], [[1, 2, 4], [1, 2, 4]])
+            self.assertEqual(nds[-i], ([1, 2, 4], [1, 2, 4]))
 
     def test_broadcast_3(self):
         nds = NdSpec("hello", item_shape=[1, 2, 3])
         self.assertTrue(nds.is_item)
         self.assertEqual(len(nds), 0)
-        self.assertEqual(list(nds), [[[["hello"] * 3] * 2]])
+        self.assertEqual([((("hello",) * 3,) * 2,)], list(nds))
         for i in range(-10, 10):
-            self.assertEqual(nds[i], [[["hello"] * 3] * 2])
+            self.assertEqual(nds[i], ((("hello",) * 3,) * 2,))
+
+    def test_filter_list(self):
+        data_1 = [[1, 2], [3, 4, 5], [6, 7, 8, 9]]
+        data_2 = [[1, 2], (3, 4), np.array([5, 6]), torch.tensor([7., 8.], requires_grad=True)]
+        for expected, actual in zip(data_1, NdSpec(data_1, item_shape=[-1])):
+            self.assertEqual(expected, actual)
+
+        for expected, actual in zip(data_2, NdSpec(data_2, item_shape=[-1])):
+            self.assertIs(expected, actual)
 
 
 if __name__ == '__main__':
