@@ -89,6 +89,11 @@ class MyTestCase(unittest.TestCase):
         for expected, actual in zip(data_2, NdSpec(data_2, item_shape=[-1])):
             self.assertIs(expected, actual)
 
+    def test_filter_list_2(self):
+        a = NdSpec(2, item_shape=[-1])
+        self.assertEqual((2,), a[0])
+        self.assertEqual("NdSpec(data=(2,), item_shape=(-1,))", str(a))
+
 
 if __name__ == '__main__':
     unittest.main()

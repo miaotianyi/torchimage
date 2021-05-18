@@ -132,4 +132,4 @@ class NdSpec:
             return (self[i] for i in range(len(self)))
 
     def __repr__(self):
-        return f"NdSpec(data={self.data.tolist()}, item_shape={self.item_shape})"
+        return f"NdSpec(data={self.data}, item_shape={self.item_shape})"
