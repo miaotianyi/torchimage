@@ -99,6 +99,27 @@ class BayerConv2d(nn.Module):
             y[..., r::2, c::2] = conv(pad(x))
         return y
 
+    def forward_unshuffle(self, x: torch.Tensor, sensor_alignment: str):
+        # this version outputs a 4-channel version
+        # this should be equivalent to F.pixel_unshuffle(bayer_conv_2d(x))
+        factor = 2  # upscale factor
+
+        # x: ..., in_channels, h, w
+        # the channel dimension is all that matters
+        y = torch.empty((x.shape[0], self.out_channels * factor**2, x.shape[-2] // 2, x.shape[-1] // 2), dtype=x.dtype, device=x.device)
+
+        sensor_alignment = check_sensor_alignment(sensor_alignment)
+        # maps a relative position (GR, R, etc.) to its absolute position tuple (e.g. (0, 1)) under this sensor
+        # alignment
+        beg_dict = get_sensor_beg_index(sensor_alignment)
+        for pos_rel in relative_positions:
+            r, c = beg_dict[pos_rel]
+            pos_abs = str(r) + str(c)
+            conv = self.conv_dict[pos_rel]
+            pad = self.padding_dict[pos_abs]
+            y[:, slice(r * 2 + c, None, factor**2), ...] = conv(pad(x))
+        return y
+
 
 def last_step_demosaic(x: torch.Tensor, y: torch.Tensor, sensor_alignment: str):
     # fill in the original colors
@@ -151,4 +172,12 @@ class PreTrainedBilinearInterpolator(nn.Module):
         # output: ..., 3, h, w; RGB tensor
         y = self.decision_layer(x, sensor_alignment=sensor_alignment)
         return last_step_demosaic(x, y, sensor_alignment).clamp(0.0, clamp)
+
+
+class BayerConv2dUnshuffle(BayerConv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, bias):
+        super(BayerConv2dUnshuffle, self).__init__(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, bias=bias)
+
+    def forward(self, x: torch.Tensor, sensor_alignment: str):
+        return self.forward_unshuffle(x=x, sensor_alignment=sensor_alignment)
 
