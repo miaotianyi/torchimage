@@ -5,6 +5,12 @@ import torch
 
 
 class MyTestCase(unittest.TestCase):
+    def test_kernels(self):
+        nds = NdSpec([1, 2, 3], item_shape=(-1, ))
+        self.assertTrue(nds.is_item)
+        for i in range(-10, 10):
+            self.assertEqual(nds[i], [1, 2, 3])
+
     def test_ragged(self):
         for filter_list in [
             [[1, 2, 3], [4, 5], [6, 7, 8], [9]],

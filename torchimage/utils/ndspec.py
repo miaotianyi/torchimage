@@ -13,7 +13,39 @@ class NdSpec:
     The input can also be a filter (list of float) or a list of filters,
     which couldn't be known until runtime.
 
-    NdSpec is
+    NdSpec is implemented with ragged ndarray (see `ragged.py`), so
+    it inherits most of the syntax and semantics.
+
+    Examples:
+
+    >>> a = NdSpec(1453, item_shape=[])
+    >>> len(a)
+    0
+    >>> a[0]
+    1453
+    >>> a[-81]
+    1453
+    >>> a[12]
+    1453
+    >>> b = NdSpec([1, 2, 3, 4, 5], item_shape=[])
+    >>> b
+    NdSpec(data=[1, 2, 3, 4, 5], item_shape=())
+    >>> len(b)
+    5
+    >>> b[0]
+    1
+    >>> b[4]
+    5
+    >>> b[-1]
+    5
+    >>> b[5]
+    IndexError: list index out of range
+    >>> c = NdSpec([1, 2, 3, 4, 5], item_shape=[-1])
+    >>> c[2]
+    [1, 2, 3, 4, 5]
+    >>> d = NdSpec("hello", item_shape=[2])
+    >>> d[12]
+    ('hello', 'hello')
 
     In neural networks and n-dimensional arrays, sometimes
     the same set of parameters have different values for different
@@ -87,11 +119,11 @@ class NdSpec:
         item_shape : tuple
             Expected shape of an item, i.e. ``np.array(item).shape``.
 
-            If it's certain that not all items have the same shape,
-            use empty tuple ``()`` as item_shape since each array
-            will be treated as a separate object.
-            When item shape is known, however, it must be correctly
-            provided. Otherwise it will cause an error.
+            If the item's length at a certain axis is uncertain
+            or if different items may have different lengths at that
+            axis, use ``-1`` to denote the item shape there.
+            e.g. if the input data is a kernel (1d array)
+            or a list of kernels with potentially different lengths.
         """
         self.item_shape = tuple(int(x) for x in item_shape)
         data, shape = get_ragged_ndarray(data, strict=True)
