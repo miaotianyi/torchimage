@@ -7,11 +7,27 @@ from .ragged import get_ragged_ndarray, expand_ragged_ndarray
 class NdSpec:
     """
     N-dimensional specification data, which represents parameters
-    like ``kernel_size`` that can either be a tuple or a scalar to
-    be broadcast.
+    like ``kernel_size`` and ``pad_width`` that can either be a
+    list of scalars (with length equal to the number of dimensions)
+    or a single scalar to be broadcast. Another example is the input
+    1d kernel for separable convolution, which can be a single kernel
+    (list of float) or a list of kernels with the same or different
+    lengths.
 
-    The input can also be a filter (list of float) or a list of filters,
-    which couldn't be known until runtime.
+    The motivation for NdSpec is to provide developers with a unified
+    interface to store such data. The developer of a module has the idea
+    of what an item should look like (e.g. pad_width should be a tuple of
+    int), but they cannot foresee the user's input at runtime, which could
+    be an item or a sequence of items. With scipy, numpy, and pytorch,
+    they usually have to use functions such as ``normalize_sequence``
+    to manually convert a scalar to a sequence with predefined length;
+    they are also required to re-write input type checks for every function.
+
+    With NdSpec, however, items are automatically processed such that
+    ``NdSpec(data=item, item_shape=...)[i] == item`` for any integer ``i``.
+    In other words, scalars can now be regarded as sequences as well.
+    The only caveat is that the __iter__ method makes single-item NdSpec
+    behave the same way as a length-1 list. So zip doesn't necessarily work.
 
     NdSpec is implemented with ragged ndarray (see `ragged.py`), so
     it inherits most of the syntax and semantics.
@@ -47,6 +63,8 @@ class NdSpec:
     >>> d[12]
     ('hello', 'hello')
 
+    A more detailed introduction:
+
     In neural networks and n-dimensional arrays, sometimes
     the same set of parameters have different values for different
     shape dimensions (depth, height, width, etc. NOT channel or batch
@@ -59,8 +77,8 @@ class NdSpec:
     In the case above, each item is a scalar (integer). The
     corresponding NdSpec is defined to have *item shape* ``()``
     because the item itself is a scalar (not an iterable).
-    In functionalities like :py:mod:`padding`,
-    parameters like ``pad``, ``constant_values``, and ``stat_length``
+    In functionalities like `padding`,
+    parameters like ``pad_width``, ``constant_values``, and ``stat_length``
     have ``item_shape == (2,)`` since padding width, etc. can be different
     before and after the source tensor.
     If only a scalar ``c`` is supplied, it should first be broadcast
