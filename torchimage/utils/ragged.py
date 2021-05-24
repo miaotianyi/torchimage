@@ -2,56 +2,23 @@ import torch
 import numpy as np
 
 
-def get_ndim(a) -> int:
+def is_scalar(a) -> bool:
     """
-    Return the number of dimensions of an array.
-
-    This method differs from ``np.ndim`` in that the array
-    conversion (if invoked) uses ``dtype=object`` so ragged
-    arrays will not cause an error.
+    Tests if a python object is a scalar (instead of an array)
 
     Parameters
     ----------
-    a : array_like
-        Input array. If it is not already an ndarray, a conversion
-        without copy is attempted.
+    a : object
+        Any object to be checked
 
     Returns
     -------
-    number_of_dimensions : int
-        The number of dimensions in `a`. Scalars are zero-dimensional.
+    bool
+        Whether the input object is a scalar
     """
-    try:
-        return a.ndim
-    except AttributeError:
-        return np.asarray(a, dtype=object).ndim
-
-
-def get_shape(a):
-    """
-    Return the shape of an array.
-
-    This method differs from ``np.shape`` in that the array
-    conversion (if invoked) uses ``dtype=object`` so ragged
-    arrays will not cause an error.
-
-    Parameters
-    ----------
-    a : array_like
-        Input array.
-
-    Returns
-    -------
-    shape : tuple of ints
-        The elements of the shape tuple give the lengths of the
-        corresponding array dimensions.
-
-    """
-    try:
-        result = a.shape
-    except AttributeError:
-        result = np.asarray(a, dtype=object).shape
-    return tuple(result)
+    if isinstance(a, (list, tuple)) or hasattr(a, "__array__"):
+        return False
+    return True
 
 
 def get_ragged_ndarray(data, strict=True):
@@ -117,12 +84,11 @@ def get_ragged_ndarray(data, strict=True):
             # cannot be ragged with numeric types
             return data, tuple(data.shape)
 
-    shape = get_shape(data)
+    if is_scalar(data):  # scalar
+        return data, ()
 
-    if len(shape) == 0 or 0 in shape:
-        # scalar, ndim == 0 (ndim = len(shape)), or:
-        # empty array with nonempty shape (e.g. shape=[0, 10])
-        return data, shape
+    if not data:  # empty array
+        return data, (0, )
 
     item_list = []
     item_shape_list = []
@@ -178,13 +144,11 @@ def recursive_expand(arr, target_shape):
             result = np.broadcast_to(arr, shape=target_shape)
             return result, tuple(target_shape), result.shape != arr.shape
 
-    # actual shape before broadcast
-    shape = get_shape(arr)
+    if is_scalar(arr):  # scalar
+        return arr, ()
 
-    if len(shape) == 0 or 0 in shape:
-        # scalar, ndim == 0 (ndim = len(shape)), or:
-        # empty array with nonempty shape (e.g. shape=[0, 10])
-        return arr, target_shape
+    if not arr:  # empty array
+        return arr, (0,)
 
     item_list = []
     item_shape_list = []
