@@ -83,6 +83,12 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(data, actual_arr)
         self.assertEqual((4, 2), actual_shape)
 
+    def test_get_shape_3(self):
+        data = [np.array(1.), 2, 3]
+        arr, shape = get_ragged_ndarray(data, strict=False)
+        self.assertIs(data, arr)
+        self.assertEqual(shape, (3,))
+
 
 if __name__ == '__main__':
     unittest.main()

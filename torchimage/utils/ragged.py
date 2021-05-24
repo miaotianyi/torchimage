@@ -16,7 +16,9 @@ def is_scalar(a) -> bool:
     bool
         Whether the input object is a scalar
     """
-    if isinstance(a, (list, tuple)) or hasattr(a, "__array__"):
+    if isinstance(a, (list, tuple)):
+        return False
+    if hasattr(a, "__array__") and hasattr(a, "__len__"):  # np.array(1) is scalar
         return False
     return True
 
