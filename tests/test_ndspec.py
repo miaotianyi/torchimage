@@ -32,8 +32,13 @@ class MyTestCase(unittest.TestCase):
                     self.assertIs(filter_list[i], nds[i])
 
     def test_empty(self):
+        # each item is a list of unknown length; can be empty (is empty in this case)
+        data = []
+        a = NdSpec(data, item_shape=(-1,))
+        self.assertIs(a[0], data)
+        # with self.assertRaises(ValueError):
         with self.assertRaises(ValueError):
-            NdSpec([])  # cannot accept empty input
+            NdSpec([], item_shape=(1, 2, 3))  # cannot accept empty input
 
     def test_list_singleton(self):
         nds = NdSpec([[1, 2]], item_shape=[2])

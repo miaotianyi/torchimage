@@ -89,6 +89,14 @@ class MyTestCase(unittest.TestCase):
         self.assertIs(data, arr)
         self.assertEqual(shape, (3,))
 
+    def test_empty(self):
+        data = []
+        arr, shape = get_ragged_ndarray(data=data, strict=True)
+        self.assertIs(arr, data)
+        self.assertEqual(shape, (0,))
+        with self.assertRaises(ValueError):
+            arr_2, shape_2 = expand_ragged_ndarray(data=arr, old_shape=shape, new_shape=(1, 2, 3))
+
 
 if __name__ == '__main__':
     unittest.main()

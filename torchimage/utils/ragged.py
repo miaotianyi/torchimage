@@ -38,10 +38,6 @@ def get_ragged_ndarray(data, strict=True):
     It might be more intuitive to think of a ragged ndarray as a
     tree where every leaf has the same depth.
 
-    We use the same logic as ``lambda x: get_ndim(x) == 0`` to determine
-    if an object is a scalar (when converted to a numpy ndarray with
-    ``dtype=object``, will it become a non-scalar array?)
-
     This data structure is designed to robustly handle all possible
     python data types, especially torch.Tensor and numpy.ndarray,
     but it's not optimized for time or space.
@@ -147,10 +143,10 @@ def recursive_expand(arr, target_shape):
             return result, tuple(target_shape), result.shape != arr.shape
 
     if is_scalar(arr):  # scalar
-        return arr, ()
+        return arr, (), False
 
     if not arr:  # empty array
-        return arr, (0,)
+        return arr, (0,), False
 
     item_list = []
     item_shape_list = []
@@ -187,6 +183,14 @@ def recursive_expand(arr, target_shape):
         return tuple(arr[0] for _ in range(target_shape[0])), tuple([target_shape[0]] + item_shape), True  # is modified
     else:
         raise ValueError(f"Non-singleton dimension {len(arr)} must match target length {target_shape[0]}")
+
+
+def _check_zero_length(old_shape, new_shape):
+    # error if try to broadcast 0 length to nonzero length
+    for a1, a2 in zip(old_shape[::-1], new_shape[::-1]):  # right-justify using reversal
+        if a1 == 0 and a2 > 0:
+            raise ValueError(f"Cannot expand 0-length dimension to nonzero-length: "
+                             f"(right-justified) {old_shape} to {new_shape}")
 
 
 def expand_ragged_ndarray(data, old_shape, new_shape):
@@ -226,6 +230,8 @@ def expand_ragged_ndarray(data, old_shape, new_shape):
 
     old_ndim = len(old_shape)
     new_ndim = len(new_shape)
+
+    _check_zero_length(old_shape, new_shape)
 
     if old_ndim < new_ndim:
         # ignore modified
