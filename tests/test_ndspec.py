@@ -105,6 +105,17 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual((2,), a[0])
         self.assertEqual("NdSpec(data=(2,), item_shape=(-1,))", str(a))
 
+    def test_index_tuple_1(self):
+        d1 = [1, 2]
+        d2 = [3, 4, 5]
+        a = NdSpec([d1, d2], item_shape=())
+        self.assertIs(a[0], d1)
+        self.assertIs(a[1], d2)
+        for i, val in enumerate(d1):
+            self.assertEqual(a[0, i], val)
+        for i, val in enumerate(d2):
+            self.assertEqual(a[1, i], val)
+
 
 if __name__ == '__main__':
     unittest.main()

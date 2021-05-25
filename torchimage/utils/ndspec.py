@@ -1,7 +1,7 @@
 """
 General utilities for torchimage
 """
-from .ragged import get_ragged_ndarray, expand_ragged_ndarray
+from .ragged import get_ragged_ndarray, expand_ragged_ndarray, apply_ragged_ndarray
 
 
 class NdSpec:
@@ -163,17 +163,20 @@ class NdSpec:
         else:
             return self.shape[0]
 
-    def __getitem__(self, *args):
+    def __getitem__(self, key):
         if self.is_item:
             return self.data
         else:
-            if len(args) > self.ndim - len(self.item_shape):
-                raise IndexError(f"Too many indices {args} for ndim={self.ndim} and item_ndim={len(self.item_shape)}")
+            if isinstance(key, tuple):
+                if len(key) > self.ndim - len(self.item_shape):
+                    raise IndexError(f"Too many indices {key} for ndim={self.ndim} and item_ndim={len(self.item_shape)}")
 
-            ret = self.data
-            for i in args:
-                ret = ret[i]
-            return ret
+                ret = self.data
+                for i in key:
+                    ret = ret[i]
+                return ret
+            # key is int
+            return self.data[key]
 
     def __iter__(self):
         if self.is_item:  # just one item
@@ -183,3 +186,20 @@ class NdSpec:
 
     def __repr__(self):
         return f"NdSpec(data={self.data}, item_shape={self.item_shape})"
+
+    def apply(self, func):
+        """
+        Apply a function element-wise to every item in self.
+
+        Parameters
+        ----------
+        func : Callable
+            The function that applies to every item in self.
+
+        Returns
+        -------
+        ret : object or tuple of objects
+            Output from applying the function element-wise
+        """
+        return apply_ragged_ndarray(self.data, func=func, depth=self.ndim - len(self.item_shape))
+

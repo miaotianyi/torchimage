@@ -124,7 +124,7 @@ def get_ragged_ndarray(data, strict=True):
     return data, tuple([len(data)] + item_shape)
 
 
-def recursive_expand(arr, target_shape):
+def _recursive_expand(arr, target_shape):
     # recursively expand the ragged ndarray according to target_shape
     # also returns a 3rd result (whether the array is indeed modified)
 
@@ -152,7 +152,7 @@ def recursive_expand(arr, target_shape):
     item_shape_list = []
     modified = False
     for item in arr:
-        item, item_shape, item_modified = recursive_expand(item, target_shape=target_shape[1:])
+        item, item_shape, item_modified = _recursive_expand(item, target_shape=target_shape[1:])
         item_list.append(item)
         item_shape_list.append(item_shape)
         modified = modified or item_modified
@@ -235,7 +235,7 @@ def expand_ragged_ndarray(data, old_shape, new_shape):
 
     if old_ndim < new_ndim:
         # ignore modified
-        data, final_shape, _ = recursive_expand(data, target_shape=new_shape[new_ndim-old_ndim:])
+        data, final_shape, _ = _recursive_expand(data, target_shape=new_shape[new_ndim - old_ndim:])
         for new_length in new_shape[:new_ndim-old_ndim][::-1]:
             if new_length == -1:  # no specification, add a trivial wrapper
                 data = (data, )
@@ -244,7 +244,20 @@ def expand_ragged_ndarray(data, old_shape, new_shape):
                 data = (data, ) * new_length
                 final_shape = (new_length, ) + final_shape
     elif old_ndim == new_ndim:
-        data, final_shape, _ = recursive_expand(data, target_shape=new_shape)
+        data, final_shape, _ = _recursive_expand(data, target_shape=new_shape)
     else:  # old_ndim > new_ndim
-        data, final_shape, _ = recursive_expand(data, target_shape=(-1,) * (old_ndim - new_ndim) + new_shape)
+        data, final_shape, _ = _recursive_expand(data, target_shape=(-1,) * (old_ndim - new_ndim) + new_shape)
     return data, final_shape
+
+
+def _recursive_apply(arr, func, depth):
+    if depth == 0:  # regard this arr as item
+        return func(arr)
+    return tuple(_recursive_apply(sub, func=func, depth=depth-1) for sub in arr)
+
+
+def apply_ragged_ndarray(arr, func, depth):
+    if not hasattr(depth, "__index__") or depth < 0:
+        raise ValueError(f"apply depth {depth} should be a nonnegative integer")
+    return _recursive_apply(arr=arr, func=func, depth=depth)
+
