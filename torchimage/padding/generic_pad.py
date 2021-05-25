@@ -34,7 +34,7 @@ def _check_padding_mode(mode):
 
 
 class GenericPadNd(nn.Module):
-    def __init__(self, pad_width, mode, constant_values=0, end_values=0.0, stat_length=None):
+    def __init__(self, pad_width=0, mode="constant", constant_values=0, end_values=0.0, stat_length=None):
         """
         Parameters
         ----------
