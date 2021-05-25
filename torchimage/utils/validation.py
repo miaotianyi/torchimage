@@ -21,5 +21,4 @@ def check_axes(x, axes):
     else:
         axes = tuple(int(a) for a in axes)
         assert all(0 <= a <= x.ndim for a in axes)
-        assert len(set(axes)) == len(axes)  # no repeated axes
     return axes
