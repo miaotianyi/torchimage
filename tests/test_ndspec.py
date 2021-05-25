@@ -116,6 +116,13 @@ class MyTestCase(unittest.TestCase):
         for i, val in enumerate(d2):
             self.assertEqual(a[1, i], val)
 
+    def test_apply_1(self):
+        for _ in range(10):
+            a = np.random.rand(10)
+            nds = NdSpec(a, item_shape=[])
+            self.assertTrue(np.array_equal(a * 2, nds.apply(lambda x: x * 2)))
+
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -5,6 +5,7 @@ from torch import nn
 from torchimage.utils import NdSpec
 from . import pad_1d
 from .utils import modify_idx, make_idx
+from ..utils.validation import check_axes
 
 _padding_function_dict = {
     "replicate": pad_1d.replicate_1d,
@@ -75,10 +76,16 @@ class GenericPadNd(nn.Module):
             ``length`` is the side length of the original tensor.
         """
         super(GenericPadNd, self).__init__()
+
         self.pad_width = NdSpec(pad_width, item_shape=[2])
-        assert all(pw[0] >= 0 <= pw[1] for pw in self.pad_width)
+
+        def _check_pad_width(pw):
+            assert pw[0] >= 0 <= pw[1]
+        self.pad_width.apply(_check_pad_width)
+
         self.mode = NdSpec(mode)
-        assert all(_check_padding_mode(m) for m in self.mode)
+        self.mode.apply(_check_padding_mode)
+
         self.constant_values = NdSpec(constant_values, item_shape=[2])
         self.end_values = NdSpec(end_values, item_shape=[2])
         self.stat_length = NdSpec(stat_length, item_shape=[2])
@@ -199,14 +206,7 @@ class GenericPadNd(nn.Module):
         """
         assert x.ndim > 0  # must have at least 1 dimension
 
-        if axes is None:
-            axes = tuple(range(x.ndim))
-        elif isinstance(axes, slice):
-            axes = tuple(range(x.ndim)[axes])
-        else:
-            axes = tuple(int(a) for a in axes)
-            assert all(0 <= a <= x.ndim for a in axes)
-            assert len(set(axes)) == len(axes)  # no repeated axes
+        axes = check_axes(x, axes)
 
         ndim_padded = min(x.ndim, len(axes))
         if self.ndim > 0:
