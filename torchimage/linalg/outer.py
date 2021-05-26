@@ -13,7 +13,7 @@ def outer(u, v):
 
     Parameters
     ----------
-    u, v : torch.Tensor
+    u, v : torch.Tensor or np.ndarray
         Input tensor with arbitrary shape.
 
     Returns
@@ -24,6 +24,4 @@ def outer(u, v):
         ``w.shape`` is the same as ``u.shape + v.shape``.
 
     """
-    assert isinstance(u, torch.Tensor)
-    assert isinstance(v, torch.Tensor)
-    return u.view(u.shape + (1, ) * v.ndim) * v
+    return u.reshape(u.shape + (1, ) * v.ndim) * v
