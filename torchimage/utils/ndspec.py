@@ -56,12 +56,20 @@ class NdSpec:
     5
     >>> b[5]
     IndexError: list index out of range
-    >>> c = NdSpec([1, 2, 3, 4, 5], item_shape=[-1])
-    >>> c[2]
+    >>> c1 = NdSpec([1, 2, 3, 4, 5], item_shape=[-1])
+    >>> c1[2]
     [1, 2, 3, 4, 5]
+    >>> c2 = NdSpec([[1, 2, 3], [4, 5]], item_shape=[-1])
+    >>> c2[0]
+    [1, 2, 3]
+    >>> c2[1]
+    [4, 5]
     >>> d = NdSpec("hello", item_shape=[2])
     >>> d[12]
     ('hello', 'hello')
+    >>> NdSpec("hello", item_shape=[2, -1])
+    NdSpec(data=(('hello',), ('hello',)), item_shape=(2, -1))
+
 
     A more detailed introduction:
 
