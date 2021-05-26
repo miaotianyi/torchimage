@@ -122,6 +122,17 @@ class MyTestCase(unittest.TestCase):
             nds = NdSpec(a, item_shape=[])
             self.assertTrue(np.array_equal(a * 2, nds.apply(lambda x: x * 2)))
 
+    def test_zip_1(self):
+        a1 = NdSpec([1, 2, 3])
+        a2 = NdSpec([4, 5, 6], item_shape=[-1])
+        a3 = NdSpec([[7, 8], [9, 10], [11]], item_shape=[-1])
+        actual = NdSpec.zip(a1, a2, a3)
+        expected = NdSpec(data=[(1, [4, 5, 6], [7, 8]),
+                                (2, [4, 5, 6], [9, 10]),
+                                (3, [4, 5, 6], [11])], item_shape=(3,))
+
+        self.assertEqual(expected.data, actual.data)
+        self.assertEqual(expected.item_shape, actual.item_shape)
 
 
 if __name__ == '__main__':

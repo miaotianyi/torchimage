@@ -228,6 +228,10 @@ def expand_ragged_ndarray(data, old_shape, new_shape):
     old_shape = tuple(int(x) for x in old_shape)
     new_shape = tuple(int(x) for x in new_shape)
 
+    # shortcut
+    if old_shape == new_shape:
+        return data, old_shape
+
     old_ndim = len(old_shape)
     new_ndim = len(new_shape)
 

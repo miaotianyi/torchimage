@@ -129,7 +129,7 @@ class NdSpec:
     is the number of padded dimensions). Therefore, torchimage
     aims to get the best of both worlds with this new format.
     """
-    def __init__(self, data: object, item_shape=()):
+    def __init__(self, data, item_shape=()):
         """
         Parameters
         ----------
@@ -210,4 +210,34 @@ class NdSpec:
             Output from applying the function element-wise
         """
         return apply_ragged_ndarray(self.data, func=func, depth=self.ndim - len(self.item_shape))
+
+    @staticmethod
+    def zip(*args):
+        """
+        Zip a sequence of NdSpec such that each new item
+        is an ordered tuple of each corresponding item in args.
+
+        For example, ``zip(NdSpec([1, 2, 3]), NdSpec(4))`` will
+        be ``NdSpec([(1, 4), (2, 4), (3, 4)], item_shape=(2,))``
+
+        Parameters
+        ----------
+        args : NdSpec
+
+        Returns
+        -------
+        ret : NdSpec
+        """
+        is_item = all(a.is_item for a in args)
+        if is_item:
+            data, shape = get_ragged_ndarray(next(zip(*args)), strict=True)
+            return NdSpec(data, item_shape=shape)
+        else:
+            # currently, only support sequence of items (nested indices excluded)
+            assert all(a.is_item or a.ndim - len(a.item_shape) == 1 for a in args)
+            data = []
+            for i in range(max(map(len, args))):
+                data.append(tuple(a[i] for a in args))
+            data, shape = get_ragged_ndarray(data, strict=True)
+            return NdSpec(data, item_shape=shape[1:])
 
