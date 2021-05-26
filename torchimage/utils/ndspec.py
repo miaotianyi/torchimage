@@ -129,7 +129,7 @@ class NdSpec:
     is the number of padded dimensions). Therefore, torchimage
     aims to get the best of both worlds with this new format.
     """
-    def __init__(self, data, item_shape=()):
+    def __init__(self, data: object, item_shape=()):
         """
         Parameters
         ----------

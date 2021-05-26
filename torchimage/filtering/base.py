@@ -1,19 +1,20 @@
 import torch
-from ..utils import NdSpec
 from ..padding import GenericPadNd
 from ..pooling.base import SeparablePoolNd
 from .utils import _same_padding_pair
 
 
 class SeparableFilterNd(SeparablePoolNd):
-    def __init__(self, kernel):
+    def __init__(self, kernel: object):
         """
         N-dimensional separable filtering
 
         In torchimage, filtering is a special subset of pooling
         that has ``stride=1`` and (usually) same padding.
-        In same padding, the
-
+        (Considering that torch has not implemented a general
+        method to perform dilated unfold on a tensor, dilation=1
+        is the default.)
+        In same padding, the input and output shapes are the same.
 
         Parameters
         ----------
