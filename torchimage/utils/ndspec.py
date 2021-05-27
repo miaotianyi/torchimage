@@ -217,6 +217,28 @@ class NdSpec:
         """
         return apply_ragged_ndarray(self.data, func=func, depth=self.ndim - len(self.item_shape))
 
+    def starmap(self, func):
+        """
+        Apply a function element-wise to every item in self.
+
+        Instead of ``func(item)`` (as in ``NdSpec.map``),
+        this method essentially applies ``func(*item)``.
+        It will cause an error if item is not iterable.
+
+        Parameters
+        ----------
+        func : Callable
+            The function that applies to every item in self.
+
+        Returns
+        -------
+        ret : object or tuple of objects
+            Output from applying the function element-wise
+        """
+        def func_star(item):
+            return func(*item)
+        return self.map(func_star)
+
     @staticmethod
     def zip(*args):
         """
