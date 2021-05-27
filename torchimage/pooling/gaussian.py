@@ -1,7 +1,51 @@
-import math
+import numpy as np
 import torch
 from torch import nn
 from ..misc import _repeat_align
+
+from .base import SeparablePoolNd
+from ..utils import NdSpec
+from ..padding import GenericPadNd
+
+
+def gaussian_kernel_1d(kernel_size, sigma):
+    """
+    generate a 1-dimensional Gaussian kernel given kernel_size and sigma.
+
+    Multi-dimensional gaussian can be created by repeatedly obtaining outer products from 1-d Gaussian kernels.
+    But when the application is Gaussian filtering (pooling) implemented through convolution,
+    separable convolution is much more efficient.
+
+    Parameters
+    ----------
+    kernel_size : int
+        length of the 1-d Gaussian kernel
+
+    sigma : float
+        standard deviation of Gaussian kernel
+
+    Returns
+    -------
+    np.ndarray
+        1-d Gaussian kernel of length kernel_size with standard deviation sigma
+    """
+    # use double for higher precision
+    x = np.arange(kernel_size, dtype=np.float64) - kernel_size // 2
+    # device and dtype will be manually adjusted later during inference
+    # no need for sqrt(2pi) because the kernel is normalized anyway
+    x = 1. / sigma * np.exp(-x ** 2 / (2 * sigma ** 2))
+    return x / x.sum()  # normalize
+
+
+class GaussianPoolNd(SeparablePoolNd):
+    @staticmethod
+    def _get_kernel(kernel_size, sigma, order):
+        kernel_params = NdSpec.zip(NdSpec(kernel_size), NdSpec(sigma), NdSpec(order))
+        return kernel_params.apply(lambda ks_s_o: gaussian_kernel_1d(kernel_size=ks_s_o[0], sigma=ks_s_o[1]))
+
+    def __init__(self, kernel_size, sigma, order=0, stride=None):
+        super(GaussianPoolNd, self).__init__(
+            kernel=GaussianPoolNd._get_kernel(kernel_size=kernel_size, sigma=sigma, order=order), stride=stride)
 
 
 class GaussianPool(nn.Module):

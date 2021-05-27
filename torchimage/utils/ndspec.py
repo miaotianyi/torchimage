@@ -151,6 +151,12 @@ class NdSpec:
             e.g. if the input data is a kernel (1d array)
             or a list of kernels with potentially different lengths.
         """
+        if isinstance(data, NdSpec):  # constructor from NdSpec
+            # TODO: not so certain about behavior design here
+            print(f"init NdSpec from another NdSpec")
+            self.__init__(data.data, data.item_shape)
+            return
+
         self.item_shape = tuple(int(x) for x in item_shape)
         data, shape = get_ragged_ndarray(data, strict=True)
         data, shape = expand_ragged_ndarray(data, old_shape=shape, new_shape=self.item_shape)

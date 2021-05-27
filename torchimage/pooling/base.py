@@ -6,7 +6,7 @@ from ..utils.validation import check_axes
 
 
 class SeparablePoolNd(nn.Module):
-    def __init__(self, kernel: object, stride=None):
+    def __init__(self, kernel, stride=None):
         """
         N-dimensional separable pooling
 

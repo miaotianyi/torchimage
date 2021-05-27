@@ -1,12 +1,12 @@
 import unittest
-from typing import List
 
-from numpy import ndarray
-
-from torchimage.pooling.base import SeparablePoolNd
 from torchimage.linalg import outer
-from torchimage.filtering.base import SeparableFilterNd
 from torchimage.padding import GenericPadNd
+from torchimage.pooling.base import SeparablePoolNd
+from torchimage.pooling.gaussian import GaussianPoolNd
+from torchimage.filtering.utils import _same_padding_pair
+from torchimage.filtering.decorator import pool_to_filter
+
 
 import numpy as np
 import torch
@@ -19,6 +19,24 @@ NDIMAGE_PAD_MODES = [("symmetric", "reflect"),
                      ("constant", "constant"),
                      ("reflect", "mirror"),
                      ("circular", "wrap")]
+
+
+class SeparableFilterNd(SeparablePoolNd):
+    # hand-written for testing only
+    def __init__(self, kernel: object):
+        super(SeparableFilterNd, self).__init__(kernel=kernel, stride=1)
+
+    def forward(self, x: torch.Tensor, axes=None, same=True, padder: GenericPadNd = None):
+        if same and padder is not None:
+            # same padding
+            same_pad_width = self.kernel_size.apply(_same_padding_pair)
+            padder = GenericPadNd(pad_width=same_pad_width,
+                                  mode=padder.mode.data,
+                                  constant_values=padder.constant_values.data,
+                                  end_values=padder.end_values.data,
+                                  stat_length=padder.stat_length.data)
+
+        return super(SeparableFilterNd, self).forward(x, axes=axes, padder=padder)
 
 
 class MyTestCase(unittest.TestCase):
@@ -47,6 +65,27 @@ class MyTestCase(unittest.TestCase):
                 result = np.allclose(y_ti.numpy(), y_ndimage, rtol=1e-5, atol=1e-5, equal_nan=False)
                 with self.subTest(ti_mode=ti_mode, ndimage_mode=ndimage_mode, ndim=ndim, kernel_size=kernel_size, shape=shape):
                     self.assertTrue(result)
+
+    def test_wrapper_1(self):
+        # wrapped image filter should behave the same way as its base pooling class
+        GaussianFilterNd = pool_to_filter(GaussianPoolNd, same=True)
+
+        x = torch.rand(17, 100, 5)
+
+        # gaussian filter type
+        gf_1 = GaussianFilterNd(9, sigma=1.5, order=0)
+        gf_2 = GaussianFilterNd(9, 1.5, 0)
+        gp = GaussianPoolNd(9, sigma=1.5, order=0, stride=1)
+
+        y1 = gf_1(x, padder=GenericPadNd(mode="reflect"))
+        y2 = gf_2(x, padder=GenericPadNd(mode="reflect"))
+        y = gp(x, padder=GenericPadNd(pad_width=4, mode="reflect"))
+        self.assertEqual(torch.abs(y1 - y).max().item(), 0)
+        self.assertEqual(torch.abs(y2 - y).max().item(), 0)
+
+    def test_gaussian_1(self):
+        # ndimage.gaussian_filter(x, sigma=sigma, order=0, mode=)
+        pass
 
 
 if __name__ == '__main__':
