@@ -41,7 +41,7 @@ class GaussianPoolNd(SeparablePoolNd):
     @staticmethod
     def _get_kernel(kernel_size, sigma, order):
         kernel_params = NdSpec.zip(NdSpec(kernel_size), NdSpec(sigma), NdSpec(order))
-        return kernel_params.apply(lambda ks_s_o: gaussian_kernel_1d(kernel_size=ks_s_o[0], sigma=ks_s_o[1]))
+        return kernel_params.map(lambda ks_s_o: gaussian_kernel_1d(kernel_size=ks_s_o[0], sigma=ks_s_o[1]))
 
     def __init__(self, kernel_size, sigma, order=0, stride=None):
         super(GaussianPoolNd, self).__init__(

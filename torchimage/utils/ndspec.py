@@ -201,7 +201,7 @@ class NdSpec:
     def __repr__(self):
         return f"NdSpec(data={self.data}, item_shape={self.item_shape})"
 
-    def apply(self, func):
+    def map(self, func):
         """
         Apply a function element-wise to every item in self.
 
@@ -239,7 +239,7 @@ class NdSpec:
             data, shape = get_ragged_ndarray(next(zip(*args)), strict=True)
             return NdSpec(data, item_shape=shape)
         else:
-            # currently, only support sequence of items (nested indices excluded)
+            # TODO: currently, only support sequence of items (nested indices excluded)
             assert all(a.is_item or a.ndim - len(a.item_shape) == 1 for a in args)
             data = []
             for i in range(max(map(len, args))):

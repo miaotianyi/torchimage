@@ -120,7 +120,7 @@ class MyTestCase(unittest.TestCase):
         for _ in range(10):
             a = np.random.rand(10)
             nds = NdSpec(a, item_shape=[])
-            self.assertTrue(np.array_equal(a * 2, nds.apply(lambda x: x * 2)))
+            self.assertTrue(np.array_equal(a * 2, nds.map(lambda x: x * 2)))
 
     def test_zip_1(self):
         a1 = NdSpec([1, 2, 3])

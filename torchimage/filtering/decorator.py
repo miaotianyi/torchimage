@@ -39,7 +39,7 @@ def pool_to_filter(cls=SeparablePoolNd, same=True):
             ba = signature(super(Wrapper, self).forward).bind(*args, **kwargs)
             if same:  # make same padder
                 if "padder" in ba.arguments and ba.arguments["padder"] is not None:
-                    same_pad_width = self.kernel_size.apply(_same_padding_pair)
+                    same_pad_width = self.kernel_size.map(_same_padding_pair)
                     padder = ba.arguments["padder"]  # old padder
                     padder = GenericPadNd(pad_width=same_pad_width,
                                           mode=padder.mode.data,

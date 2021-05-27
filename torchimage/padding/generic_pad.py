@@ -81,10 +81,11 @@ class GenericPadNd(nn.Module):
 
         def _check_pad_width(pw):
             assert pw[0] >= 0 <= pw[1]
-        self.pad_width.apply(_check_pad_width)
+
+        self.pad_width.map(_check_pad_width)
 
         self.mode = NdSpec(mode)
-        self.mode.apply(_check_padding_mode)
+        self.mode.map(_check_padding_mode)
 
         self.constant_values = NdSpec(constant_values, item_shape=[2])
         self.end_values = NdSpec(end_values, item_shape=[2])

@@ -29,7 +29,7 @@ class SeparableFilterNd(SeparablePoolNd):
     def forward(self, x: torch.Tensor, axes=None, same=True, padder: GenericPadNd = None):
         if same and padder is not None:
             # same padding
-            same_pad_width = self.kernel_size.apply(_same_padding_pair)
+            same_pad_width = self.kernel_size.map(_same_padding_pair)
             padder = GenericPadNd(pad_width=same_pad_width,
                                   mode=padder.mode.data,
                                   constant_values=padder.constant_values.data,

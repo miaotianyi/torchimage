@@ -27,7 +27,7 @@ class SeparablePoolNd(nn.Module):
         """
         super(SeparablePoolNd, self).__init__()
         self.kernel = NdSpec(kernel, item_shape=[-1])
-        self.kernel_size = NdSpec(self.kernel.apply(len), item_shape=[])
+        self.kernel_size = NdSpec(self.kernel.map(len), item_shape=[])
         self.stride = NdSpec(stride, item_shape=[])
 
     def forward(self, x: torch.Tensor, axes=None, padder: GenericPadNd = None):
@@ -56,7 +56,7 @@ class SeparablePoolNd(nn.Module):
         """
         axes = check_axes(x, axes)
         # move kernel to corresponding device/dtype
-        kernel = NdSpec(self.kernel.apply(lambda k: torch.tensor(k, dtype=x.dtype, device=x.device)), item_shape=[-1])
+        kernel = NdSpec(self.kernel.map(lambda k: torch.tensor(k, dtype=x.dtype, device=x.device)), item_shape=[-1])
 
         for i, axis in enumerate(axes):
             if padder is not None:
