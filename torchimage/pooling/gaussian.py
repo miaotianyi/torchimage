@@ -7,14 +7,20 @@ from .base import SeparablePoolNd
 from ..utils import NdSpec
 from ..padding import GenericPadNd
 
+# use gaussian kernel from scipy
+from scipy.ndimage.filters import _gaussian_kernel1d
 
-def gaussian_kernel_1d(kernel_size, sigma):
+
+def gaussian_kernel_1d(kernel_size, sigma, order):
     """
     generate a 1-dimensional Gaussian kernel given kernel_size and sigma.
 
     Multi-dimensional gaussian can be created by repeatedly obtaining outer products from 1-d Gaussian kernels.
     But when the application is Gaussian filtering (pooling) implemented through convolution,
     separable convolution is much more efficient.
+
+    This function uses the utility function from scipy.ndimage
+    to generate gaussian kernels
 
     Parameters
     ----------
@@ -24,24 +30,41 @@ def gaussian_kernel_1d(kernel_size, sigma):
     sigma : float
         standard deviation of Gaussian kernel
 
+    order : int
+        An order of 0 corresponds to convolution with a Gaussian
+        kernel. A positive order corresponds to convolution with
+        that derivative of a Gaussian.
+
+
     Returns
     -------
     np.ndarray
         1-d Gaussian kernel of length kernel_size with standard deviation sigma
     """
-    # use double for higher precision
-    x = np.arange(kernel_size, dtype=np.float64) - kernel_size // 2
-    # device and dtype will be manually adjusted later during inference
-    # no need for sqrt(2pi) because the kernel is normalized anyway
-    x = 1. / sigma * np.exp(-x ** 2 / (2 * sigma ** 2))
-    return x / x.sum()  # normalize
+    # require reverse
+    # because scipy convolution (signal processing convention) flips the kernel
+
+    kernel = _gaussian_kernel1d(sigma=sigma, order=order, radius=kernel_size // 2)[::-1]
+    if len(kernel) == kernel_size:
+        return kernel.tolist()
+    else:
+        kernel = kernel[:kernel_size]  # convert odd-sized kernel to even-sized; remove last element
+        kernel /= kernel.sum()  # re-normalize
+        return kernel.tolist()
+
+    # # use double for higher precision
+    # # x = np.arange(kernel_size, dtype=np.float64) - kernel_size // 2
+    # # device and dtype will be manually adjusted later during inference
+    # # no need for sqrt(2pi) because the kernel is normalized anyway
+    # x = 1. / sigma * np.exp(-x ** 2 / (2 * sigma ** 2))
+    # return x / x.sum()  # normalize
 
 
 class GaussianPoolNd(SeparablePoolNd):
     @staticmethod
     def _get_kernel(kernel_size, sigma, order):
         kernel_params = NdSpec.zip(NdSpec(kernel_size), NdSpec(sigma), NdSpec(order))
-        return kernel_params.starmap(lambda ks, s, _: gaussian_kernel_1d(kernel_size=ks, sigma=s))
+        return kernel_params.starmap(lambda ks, s, o: gaussian_kernel_1d(kernel_size=ks, sigma=s, order=o))
 
     def __init__(self, kernel_size, sigma, order=0, stride=None):
         super(GaussianPoolNd, self).__init__(

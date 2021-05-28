@@ -84,8 +84,33 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(torch.abs(y2 - y).max().item(), 0)
 
     def test_gaussian_1(self):
-        # ndimage.gaussian_filter(x, sigma=sigma, order=0, mode=)
-        pass
+        sigma = 1.5
+        truncate = 4
+        order = 0
+        GaussianFilterClass = pool_to_filter(GaussianPoolNd, same=True)
+        for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+            print(int(truncate * sigma + 0.5))
+            x = torch.rand(10, 37, 21, dtype=torch.float64)
+            y_sp = ndimage.gaussian_filter(x.numpy(), sigma=sigma, order=order, mode=ndimage_mode, truncate=truncate)
+            gf1 = GaussianFilterClass(kernel_size=2 * truncate * sigma + 1, sigma=sigma, order=order)
+            print(f"{gf1.kernel_size=}")
+            y_ti = gf1(x, axes=None, padder=GenericPadNd(mode=ti_mode))
+            y_ti = y_ti.numpy()
+            print(np.abs(y_sp - y_ti).max())
+
+    def test_precision_1(self):
+        # 1d convolution precision testing
+        for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+            x = torch.rand(10, dtype=torch.float64)
+            w = torch.rand(5, dtype=torch.float64)
+            y1 = ndimage.correlate1d(x.numpy(), w.numpy(), axis=-1, mode=ndimage_mode, origin=0)
+            y2 = pool_to_filter(SeparablePoolNd, same=True)(w)(x, padder=GenericPadNd(mode=ti_mode)).numpy()
+            result = np.allclose(y1, y2, rtol=1e-9, atol=1e-9)
+            with self.subTest(ti_mode=ti_mode, ndimage_mode=ndimage_mode):
+                self.assertTrue(result)
+
+
+
 
 
 if __name__ == '__main__':
