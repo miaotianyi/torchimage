@@ -32,7 +32,31 @@ The end goal of torchimage is to replace MatLab's image processing toolbox
 
 
 """
-from scipy import ndimage
-from skimage import filters
-print(ndimage.sobel([[0, 0, 1], [0, 0, 1], [0, 0, 1]]))
+import torch
+from torch import nn
 
+from ..padding import GenericPadNd
+
+
+def edge_magnitude(image, axes, padder: GenericPadNd = None):
+    pass
+
+
+class EdgeComponent(nn.Module):
+    def __init__(self, edge_kernel, smooth_kernel):
+        super().__init__()
+        self.edge_kernel = edge_kernel
+        self.smooth_kernel = smooth_kernel
+
+    def forward(self, x, edge_axis, smooth_axes, same=True, padder: GenericPadNd = None):
+        pass
+
+
+class EdgeMagnitude(nn.Module):
+    def __init__(self, edge_kernel, smooth_kernel):
+        super().__init__()
+        self.edge_kernel = edge_kernel
+        self.smooth_kernel = smooth_kernel
+
+    def forward(self, x, axes, same=True, padder: GenericPadNd = None):
+        pass
