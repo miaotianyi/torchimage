@@ -13,7 +13,6 @@ import numpy as np
 import torch
 from functools import reduce
 from scipy import ndimage
-from skimage import filters
 
 NDIMAGE_PAD_MODES = [("symmetric", "reflect"),
                      ("replicate", "nearest"),

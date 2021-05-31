@@ -194,6 +194,8 @@ class GenericPadNd(nn.Module):
         assert x.ndim > 0  # must have at least 1 dimension
 
         axes = check_axes(x, axes)
+        if not axes:
+            return x
 
         ndim_padded = min(x.ndim, len(axes))
         if self.ndim > 0:
