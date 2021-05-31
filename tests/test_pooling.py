@@ -4,6 +4,7 @@ from torchimage.linalg import outer
 from torchimage.padding import GenericPadNd
 from torchimage.pooling.base import SeparablePoolNd
 from torchimage.pooling.gaussian import GaussianPoolNd
+from torchimage.pooling.uniform import AveragePoolNd
 from torchimage.filtering.utils import _same_padding_pair
 from torchimage.filtering.decorator import pool_to_filter
 
@@ -107,6 +108,16 @@ class MyTestCase(unittest.TestCase):
             result = np.allclose(y1, y2, rtol=1e-9, atol=1e-9)
             with self.subTest(ti_mode=ti_mode, ndimage_mode=ndimage_mode):
                 self.assertTrue(result)
+
+    def test_average_1(self):
+        UniformFilterNd = pool_to_filter(AveragePoolNd, same=True)
+        for kernel_size in range(3, 15, 2):
+            x = torch.rand(13, 25, 18, dtype=torch.float64)
+            for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+                y_ti = UniformFilterNd(kernel_size=kernel_size)(x, padder=GenericPadNd(mode=ti_mode)).numpy()
+                y_ndi = ndimage.uniform_filter(x.numpy(), size=kernel_size, mode=ndimage_mode)
+                with self.subTest(kernel_size=kernel_size, ti_mode=ti_mode, ndimage_mode=ndimage_mode):
+                    self.assertLess(np.abs(y_ti - y_ndi).max(), 1e-10)
 
 
 if __name__ == '__main__':
