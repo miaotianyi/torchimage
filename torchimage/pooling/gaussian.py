@@ -5,10 +5,11 @@ from ..misc import _repeat_align
 
 from .base import SeparablePoolNd
 from ..utils import NdSpec
-from ..padding import GenericPadNd
 
 # use gaussian kernel from scipy
 from scipy.ndimage.filters import _gaussian_kernel1d
+
+import warnings
 
 
 def gaussian_kernel_1d(kernel_size, sigma, order):
@@ -27,6 +28,9 @@ def gaussian_kernel_1d(kernel_size, sigma, order):
     kernel_size : int
         length of the 1-d Gaussian kernel
 
+        Please be aware that while even-length gaussian kernels can be generated,
+        they are not well-defined and will cause a shift.
+
     sigma : float
         standard deviation of Gaussian kernel
 
@@ -43,21 +47,17 @@ def gaussian_kernel_1d(kernel_size, sigma, order):
     """
     # require reverse
     # because scipy convolution (signal processing convention) flips the kernel
-
+    # scipy convolution uses np.random, which automatically uses float64
+    # device and dtype will be manually adjusted later in inference stage
     kernel = _gaussian_kernel1d(sigma=sigma, order=order, radius=kernel_size // 2)[::-1]
     if len(kernel) == kernel_size:
         return kernel.tolist()
     else:
         kernel = kernel[:kernel_size]  # convert odd-sized kernel to even-sized; remove last element
-        kernel /= kernel.sum()  # re-normalize
+        # re-normalize doesn't apply to higher orders
+        if order == 0:
+            kernel /= kernel.sum()
         return kernel.tolist()
-
-    # # use double for higher precision
-    # # x = np.arange(kernel_size, dtype=np.float64) - kernel_size // 2
-    # # device and dtype will be manually adjusted later during inference
-    # # no need for sqrt(2pi) because the kernel is normalized anyway
-    # x = 1. / sigma * np.exp(-x ** 2 / (2 * sigma ** 2))
-    # return x / x.sum()  # normalize
 
 
 class GaussianPoolNd(SeparablePoolNd):
@@ -144,6 +144,9 @@ class GaussianPool(nn.Module):
             Strides for convolution
         """
         super(GaussianPool, self).__init__()
+
+        warnings.warn("Deprecation Warning: Old gaussian pooling (doesn't use NdSpec) will be removed soon", DeprecationWarning)
+
         if stride is None:
             stride = kernel_size
 

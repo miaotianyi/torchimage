@@ -62,7 +62,7 @@ class MyTestCase(unittest.TestCase):
                 # note that convolve in neural network is correlate in signal processing
                 y_ndimage = ndimage.correlate(x.numpy(), weights=full_conv_tensor, mode=ndimage_mode)
                 y_ti = SeparableFilterNd(kernels)(x, same=True, padder=GenericPadNd(mode=ti_mode))
-                result = np.allclose(y_ti.numpy(), y_ndimage, rtol=1e-5, atol=1e-5, equal_nan=False)
+                result = np.allclose(y_ti.numpy(), y_ndimage, rtol=1e-7, atol=1e-5, equal_nan=False)
                 with self.subTest(ti_mode=ti_mode, ndimage_mode=ndimage_mode, ndim=ndim, kernel_size=kernel_size, shape=shape):
                     self.assertTrue(result)
 
@@ -85,18 +85,17 @@ class MyTestCase(unittest.TestCase):
 
     def test_gaussian_1(self):
         sigma = 1.5
-        truncate = 4
-        order = 0
+
         GaussianFilterClass = pool_to_filter(GaussianPoolNd, same=True)
-        for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
-            print(int(truncate * sigma + 0.5))
-            x = torch.rand(10, 37, 21, dtype=torch.float64)
-            y_sp = ndimage.gaussian_filter(x.numpy(), sigma=sigma, order=order, mode=ndimage_mode, truncate=truncate)
-            gf1 = GaussianFilterClass(kernel_size=2 * truncate * sigma + 1, sigma=sigma, order=order)
-            print(f"{gf1.kernel_size=}")
-            y_ti = gf1(x, axes=None, padder=GenericPadNd(mode=ti_mode))
-            y_ti = y_ti.numpy()
-            print(np.abs(y_sp - y_ti).max())
+        for truncate in range(2, 10, 2):
+            for order in range(6):
+                for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+                    x = torch.rand(10, 37, 21, dtype=torch.float64)
+                    y_sp = ndimage.gaussian_filter(x.numpy(), sigma=sigma, order=order, mode=ndimage_mode, truncate=truncate)
+                    gf1 = GaussianFilterClass(kernel_size=2 * truncate * sigma + 1, sigma=sigma, order=order)
+                    y_ti = gf1(x, axes=None, padder=GenericPadNd(mode=ti_mode))
+                    y_ti = y_ti.numpy()
+                    self.assertLess(np.abs(y_sp - y_ti).max(), 1e-10)
 
     def test_precision_1(self):
         # 1d convolution precision testing
@@ -108,9 +107,6 @@ class MyTestCase(unittest.TestCase):
             result = np.allclose(y1, y2, rtol=1e-9, atol=1e-9)
             with self.subTest(ti_mode=ti_mode, ndimage_mode=ndimage_mode):
                 self.assertTrue(result)
-
-
-
 
 
 if __name__ == '__main__':
