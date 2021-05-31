@@ -116,7 +116,7 @@ class MyTestCase(unittest.TestCase):
         for i, val in enumerate(d2):
             self.assertEqual(a[1, i], val)
 
-    def test_apply_1(self):
+    def test_map_1(self):
         for _ in range(10):
             a = np.random.rand(10)
             nds = NdSpec(a, item_shape=[])
@@ -133,6 +133,12 @@ class MyTestCase(unittest.TestCase):
 
         self.assertEqual(expected.data, actual.data)
         self.assertEqual(expected.item_shape, actual.item_shape)
+
+    def test_zip_2(self):
+        a1 = NdSpec([1, 2, 3])
+        a2 = NdSpec([4, 5, 6, 7])
+        with self.assertRaises(ValueError):
+            NdSpec.zip(a1, a2)
 
 
 if __name__ == '__main__':

@@ -1,7 +1,10 @@
 """
 General utilities for torchimage
 """
+import numpy as np
+
 from .ragged import get_ragged_ndarray, expand_ragged_ndarray, apply_ragged_ndarray
+from itertools import product
 
 
 class NdSpec:
@@ -27,7 +30,8 @@ class NdSpec:
     ``NdSpec(data=item, item_shape=...)[i] == item`` for any integer ``i``.
     In other words, scalars can now be regarded as sequences as well.
     The only caveat is that the __iter__ method makes single-item NdSpec
-    behave the same way as a length-1 list. So zip doesn't necessarily work.
+    behave the same way as a length-1 list. So zip doesn't necessarily work,
+    use staticmethod ``NdSpec.zip`` instead.
 
     NdSpec is implemented with ragged ndarray (see `ragged.py`), so
     it inherits most of the syntax and semantics.
@@ -151,9 +155,7 @@ class NdSpec:
             e.g. if the input data is a kernel (1d array)
             or a list of kernels with potentially different lengths.
         """
-        if isinstance(data, NdSpec):  # constructor from NdSpec
-            # TODO: not so certain about behavior design here
-            print(f"init NdSpec from another NdSpec")
+        if isinstance(data, NdSpec):  # constructor from NdSpec; shallow copy
             self.__init__(data.data, data.item_shape)
             return
 
@@ -163,8 +165,9 @@ class NdSpec:
 
         self.data = data
         self.ndim = len(shape)
-        self.shape = shape
         self.is_item = self.ndim == len(item_shape)
+        self.shape = shape
+        self.index_shape = self.shape[:self.ndim - len(item_shape)]
 
     def __len__(self):
         """
@@ -182,7 +185,7 @@ class NdSpec:
             return self.data
         else:
             if isinstance(key, tuple):
-                if len(key) > self.ndim - len(self.item_shape):
+                if len(key) > len(self.index_shape):
                     raise IndexError(f"Too many indices {key} for ndim={self.ndim} and item_ndim={len(self.item_shape)}")
 
                 ret = self.data
@@ -256,16 +259,93 @@ class NdSpec:
         -------
         ret : NdSpec
         """
-        is_item = all(a.is_item for a in args)
-        if is_item:
-            data, shape = get_ragged_ndarray(next(zip(*args)), strict=True)
-            return NdSpec(data, item_shape=shape)
+        return NdSpec.apply(lambda *a: tuple(a), *args)
+
+    @staticmethod
+    def agg_index_shape(*args):
+        """
+        Get the aggregate index shape of input NdSpecs.
+
+        The shape of an NdSpec is ``index_shape + item_shape``,
+        where index shape is usually empty (when the NdSpec
+        is an item) or (n,) where n is an integer (when the NdSpec
+        is a list of items). Higher-order index shapes are supported
+        but rare.
+
+        Note that items are not necessarily scalars, they
+        can also be a tuple of object with different shapes.
+
+        Parameters
+        ----------
+        args : NdSpec
+            Input NdSpec objects
+
+        Returns
+        -------
+        index_shape : tuple of int
+            Aggregate index shape of the NdSpecs (as if they
+            were zipped)
+
+        Raises
+        ------
+        ValueError
+            When the input NdSpecs are not broadcastable
+            (have different nonempty index shapes)
+        """
+        if not args:
+            raise ValueError("Requires at least 1 input NdSpec")
+
+        if not all(isinstance(a, NdSpec) for a in args):
+            raise ValueError("Input arguments must have type NdSpec")
+
+        index_shape_set = set(a.index_shape for a in args)
+        if len(index_shape_set) == 1:
+            return next(iter(index_shape_set))  # only 1 index shape
+        elif len(index_shape_set) == 2 and () in index_shape_set:
+            index_shape_set.remove(())
+            return next(iter(index_shape_set))  # 2 shapes, 1 trivial
         else:
-            # TODO: currently, only support sequence of items (nested indices excluded)
-            assert all(a.is_item or a.ndim - len(a.item_shape) == 1 for a in args)
-            data = []
-            for i in range(max(map(len, args))):
-                data.append(tuple(a[i] for a in args))
-            data, shape = get_ragged_ndarray(data, strict=True)
-            return NdSpec(data, item_shape=shape[1:])
+            raise ValueError(f"Input NdSpecs cannot broadcast: {args} have different index shapes {index_shape_set}")
+
+    @staticmethod
+    def apply(func, *args):
+        """
+        Generate a new NdSpec, whose every item is the result of
+        applying the function item-wise on the sequence of items
+        from input NdSpecs in corresponding positions.
+
+        Parameters
+        ----------
+        func : function
+            The function to be applied item-wise.
+
+            It has signature ``func(item_1, item_2, ...)`` where
+            the sequence of items has the same length as `args`.
+
+        args : NdSpec
+            An indefinite number of NdSpecs with the same index shape
+
+        Returns
+        -------
+        nds : NdSpec
+            An aggregate NdSpec with the same index shape
+        """
+        # equivalent to zip().starmap(func)
+        index_shape = NdSpec.agg_index_shape(*args)
+
+        if index_shape == ():  # all args are items
+            data = func(*[a.data for a in args])
+        else:
+            data = np.empty(index_shape, dtype=object)
+            for i in product(*map(range, index_shape)):
+                data[i] = func(*[a[i] for a in args])
+            data = data.tolist()
+
+        # TODO: this causes repeated computation
+        #   find ways to avoid using get_ragged_array twice
+        #   maybe initialize NdSpec with index_shape as well?
+        data, shape = get_ragged_ndarray(data, strict=True)
+        return NdSpec(data, item_shape=shape[len(index_shape):])
+
+
 

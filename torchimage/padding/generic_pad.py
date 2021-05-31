@@ -91,25 +91,11 @@ class GenericPadNd(nn.Module):
         self.end_values = NdSpec(end_values, item_shape=[2])
         self.stat_length = NdSpec(stat_length, item_shape=[2])
 
-        # list of NdSpec lengths
-        ndim_list = list(map(len, [
-            self.pad_width, self.mode, self.constant_values, self.end_values, self.stat_length]))
-        # unique NdSpec lengths that are non-broadcastable (length > 0)
-        pos_ndim_set = set(x for x in ndim_list if x > 0)
-        if len(pos_ndim_set) > 1:
-            raise ValueError(
-                f"Incompatible non-broadcastable NdSpec lengths: " +
-                (f"{self.pad_width=} " if len(self.pad_width) > 0 else "") +
-                (f"{self.mode=} " if len(self.mode) > 0 else "") +
-                (f"{self.constant_values=} " if len(self.constant_values) > 0 else "") +
-                (f"{self.end_values=} " if len(self.end_values) > 0 else "") +
-                (f"{self.stat_length=} " if len(self.stat_length) > 0 else "")
-            )
-
-        if pos_ndim_set:  # must have size 1
-            self.ndim = next(iter(pos_ndim_set))  # fixed-length; non-broadcastable
-        else:
-            self.ndim = 0  # broadcastable
+        # input values should be broadcastable (item or same-length list of items)
+        # otherwise raises an error
+        index_shape = NdSpec.agg_index_shape(self.pad_width, self.mode,
+                                             self.constant_values, self.end_values, self.stat_length)
+        self.ndim = index_shape[0] if index_shape else 0
 
     def _fill_value_1d(self, y: torch.Tensor, i: int, axis: int, idx):
         """
