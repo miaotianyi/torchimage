@@ -2,6 +2,7 @@ import torch
 from ..padding import GenericPadNd
 from ..pooling.base import SeparablePoolNd
 from .utils import _same_padding_pair
+import warnings
 
 
 class SeparableFilterNd(SeparablePoolNd):
@@ -9,19 +10,13 @@ class SeparableFilterNd(SeparablePoolNd):
         """
         N-dimensional separable filtering
 
-        In torchimage, filtering is a special subset of pooling
-        that has ``stride=1`` and (usually) same padding.
-        (Considering that torch has not implemented a general
-        method to perform dilated unfold on a tensor, dilation=1
-        is the default.)
-        In same padding, the input and output shapes are the same.
-
         Parameters
         ----------
         kernel : 1d float array, or a sequence thereof
             Filter kernel at each axis.
 
         """
+        warnings.warn("SeparableFilterNd is deprecated, please use decorator pool_to_filter instead", DeprecationWarning)
         super(SeparableFilterNd, self).__init__(kernel=kernel, stride=1)
 
     def forward(self, x: torch.Tensor, axes=None, same=True, padder: GenericPadNd = None):
@@ -36,17 +31,6 @@ class SeparableFilterNd(SeparablePoolNd):
 
         same : bool
             If True, implements same padding.
-
-            When ``same=True``, the ``pad_width`` argument in padder will
-            be overridden (so you may leave it to default when constructing
-            the padder in the first place).
-
-            If False, padder will be used as-is. So if you wish to use
-            valid padding (in image filtering terminology, that means
-            no padding), simply put ``padder=None``. For full padding
-            (return the entire processed image, especially when customized
-            padding makes the image shape larger), use any padder that
-            you want.
 
         padder : GenericPadNd
 
