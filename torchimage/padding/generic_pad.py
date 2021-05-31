@@ -5,6 +5,7 @@ from torch import nn
 from torchimage.utils import NdSpec
 from . import pad_1d
 from .utils import modify_idx, make_idx
+from ..utils.validation import check_axes
 
 _padding_function_dict = {
     "replicate": pad_1d.replicate_1d,
@@ -33,7 +34,7 @@ def _check_padding_mode(mode):
 
 
 class GenericPadNd(nn.Module):
-    def __init__(self, pad_width, mode, constant_values=0, end_values=0.0, stat_length=None):
+    def __init__(self, pad_width=0, mode="constant", constant_values=0, end_values=0.0, stat_length=None):
         """
         Parameters
         ----------
@@ -75,33 +76,26 @@ class GenericPadNd(nn.Module):
             ``length`` is the side length of the original tensor.
         """
         super(GenericPadNd, self).__init__()
+
         self.pad_width = NdSpec(pad_width, item_shape=[2])
-        assert all(pw[0] >= 0 <= pw[1] for pw in self.pad_width)
+
+        def _check_pad_width(pw):
+            assert pw[0] >= 0 <= pw[1]
+
+        self.pad_width.map(_check_pad_width)
+
         self.mode = NdSpec(mode)
-        assert all(_check_padding_mode(m) for m in self.mode)
+        self.mode.map(_check_padding_mode)
+
         self.constant_values = NdSpec(constant_values, item_shape=[2])
         self.end_values = NdSpec(end_values, item_shape=[2])
         self.stat_length = NdSpec(stat_length, item_shape=[2])
 
-        # list of NdSpec lengths
-        ndim_list = list(map(len, [
-            self.pad_width, self.mode, self.constant_values, self.end_values, self.stat_length]))
-        # unique NdSpec lengths that are non-broadcastable (length > 0)
-        pos_ndim_set = set(x for x in ndim_list if x > 0)
-        if len(pos_ndim_set) > 1:
-            raise ValueError(
-                f"Incompatible non-broadcastable NdSpec lengths: " +
-                (f"{self.pad_width=} " if len(self.pad_width) > 0 else "") +
-                (f"{self.mode=} " if len(self.mode) > 0 else "") +
-                (f"{self.constant_values=} " if len(self.constant_values) > 0 else "") +
-                (f"{self.end_values=} " if len(self.end_values) > 0 else "") +
-                (f"{self.stat_length=} " if len(self.stat_length) > 0 else "")
-            )
-
-        if pos_ndim_set:  # must have size 1
-            self.ndim = next(iter(pos_ndim_set))  # fixed-length; non-broadcastable
-        else:
-            self.ndim = 0  # broadcastable
+        # input values should be broadcastable (item or same-length list of items)
+        # otherwise raises an error
+        index_shape = NdSpec.agg_index_shape(self.pad_width, self.mode,
+                                             self.constant_values, self.end_values, self.stat_length)
+        self.ndim = index_shape[0] if index_shape else 0
 
     def _fill_value_1d(self, y: torch.Tensor, i: int, axis: int, idx):
         """
@@ -199,14 +193,9 @@ class GenericPadNd(nn.Module):
         """
         assert x.ndim > 0  # must have at least 1 dimension
 
-        if axes is None:
-            axes = tuple(range(x.ndim))
-        elif isinstance(axes, slice):
-            axes = tuple(range(x.ndim)[axes])
-        else:
-            axes = tuple(int(a) for a in axes)
-            assert all(0 <= a <= x.ndim for a in axes)
-            assert len(set(axes)) == len(axes)  # no repeated axes
+        axes = check_axes(x, axes)
+        if not axes:
+            return x
 
         ndim_padded = min(x.ndim, len(axes))
         if self.ndim > 0:

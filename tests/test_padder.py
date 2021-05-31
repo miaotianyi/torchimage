@@ -16,7 +16,7 @@ class MyTestCase(unittest.TestCase):
         if tol is None:
             tol = self.tol
         lib = torch if (torch.is_tensor(a) and torch.is_tensor(b)) else np
-        self.assertLess(lib.abs(a - b).sum(), tol, msg=f"{a} is not equal to {b}")
+        self.assertLess(lib.abs(a - b).sum(), tol, msg=f"{a} is not equal to {b}, {msg}")
 
     def test_const_padding(self):
         mode = "constant"

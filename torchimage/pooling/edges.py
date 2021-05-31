@@ -22,7 +22,13 @@ ndimage DOES NOT support gradient magnitude
 It also has no normalization option
 Take sobel as example, [-1, 0, 1] are multiplied exactly as stated, whereas they should have been normalized
 
-skimage specification
+skimage filters
+
+
+
+
+MATLAB filtering module
+The end goal of torchimage is to replace MatLab's image processing toolbox
 
 
 """

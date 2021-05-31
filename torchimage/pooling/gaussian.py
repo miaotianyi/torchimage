@@ -1,7 +1,74 @@
-import math
+import numpy as np
 import torch
 from torch import nn
 from ..misc import _repeat_align
+
+from .base import SeparablePoolNd
+from ..utils import NdSpec
+
+# use gaussian kernel from scipy
+from scipy.ndimage.filters import _gaussian_kernel1d
+
+import warnings
+
+
+def gaussian_kernel_1d(kernel_size, sigma, order):
+    """
+    generate a 1-dimensional Gaussian kernel given kernel_size and sigma.
+
+    Multi-dimensional gaussian can be created by repeatedly obtaining outer products from 1-d Gaussian kernels.
+    But when the application is Gaussian filtering (pooling) implemented through convolution,
+    separable convolution is much more efficient.
+
+    This function uses the utility function from scipy.ndimage
+    to generate gaussian kernels
+
+    Parameters
+    ----------
+    kernel_size : int
+        length of the 1-d Gaussian kernel
+
+        Please be aware that while even-length gaussian kernels can be generated,
+        they are not well-defined and will cause a shift.
+
+    sigma : float
+        standard deviation of Gaussian kernel
+
+    order : int
+        An order of 0 corresponds to convolution with a Gaussian
+        kernel. A positive order corresponds to convolution with
+        that derivative of a Gaussian.
+
+
+    Returns
+    -------
+    np.ndarray
+        1-d Gaussian kernel of length kernel_size with standard deviation sigma
+    """
+    # require reverse
+    # because scipy convolution (signal processing convention) flips the kernel
+    # scipy convolution uses np.random, which automatically uses float64
+    # device and dtype will be manually adjusted later in inference stage
+    kernel = _gaussian_kernel1d(sigma=sigma, order=order, radius=kernel_size // 2)[::-1]
+    if len(kernel) == kernel_size:
+        return kernel.tolist()
+    else:
+        kernel = kernel[:kernel_size]  # convert odd-sized kernel to even-sized; remove last element
+        # re-normalize doesn't apply to higher orders
+        if order == 0:
+            kernel /= kernel.sum()
+        return kernel.tolist()
+
+
+class GaussianPoolNd(SeparablePoolNd):
+    @staticmethod
+    def _get_kernel(kernel_size, sigma, order):
+        kernel_params = NdSpec.zip(NdSpec(kernel_size), NdSpec(sigma), NdSpec(order))
+        return kernel_params.starmap(lambda ks, s, o: gaussian_kernel_1d(kernel_size=ks, sigma=s, order=o))
+
+    def __init__(self, kernel_size, sigma, order=0, stride=None):
+        super(GaussianPoolNd, self).__init__(
+            kernel=GaussianPoolNd._get_kernel(kernel_size=kernel_size, sigma=sigma, order=order), stride=stride)
 
 
 class GaussianPool(nn.Module):
@@ -77,6 +144,9 @@ class GaussianPool(nn.Module):
             Strides for convolution
         """
         super(GaussianPool, self).__init__()
+
+        warnings.warn("Deprecation Warning: Old gaussian pooling (doesn't use NdSpec) will be removed soon", DeprecationWarning)
+
         if stride is None:
             stride = kernel_size
 
