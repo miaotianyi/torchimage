@@ -111,7 +111,7 @@ class EdgeMagnitude(nn.Module):
         self.component = edge_component
         self.epsilon = epsilon  # small constant to prevent overflow
 
-    def forward(self, x, axes, same=True, padder: GenericPadNd = None):
+    def forward(self, x, axes=None, same=True, padder: GenericPadNd = None):
         axes = check_axes(x, axes)
         if len(axes) < 2:
             raise ValueError(f"Image gradient computation requires at least 2 axes, got {axes} instead")
