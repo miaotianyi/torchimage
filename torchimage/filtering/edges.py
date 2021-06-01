@@ -19,10 +19,6 @@ ndimage DOES NOT support gradient magnitude
 It also has no normalization option
 Take sobel as example, [-1, 0, 1] are multiplied exactly as stated, whereas they should have been normalized
 
-skimage filters
-
-
-
 
 MATLAB filtering module
 The end goal of torchimage is to replace MatLab's image processing toolbox
@@ -34,7 +30,7 @@ import torch
 from torch import nn
 
 
-from ..pooling.gaussian import gaussian_kernel_1d
+from ..pooling.gaussian import gaussian_kernel_1d, GaussianPoolNd
 from ..pooling.base import SeparablePoolNd
 from .decorator import pool_to_filter
 from ..padding import GenericPadNd
@@ -54,7 +50,7 @@ class EdgeDetector(nn.Module):
                 return kernel.tolist()
             self.smooth_kernel = self.smooth_kernel.map(_reweight)
 
-    def forward(self, x, mode, *, edge_axis=-1, smooth_axes=-2, axes=None, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"), epsilon=1e-8):
+    def forward(self, x, mode, *, edge_axis=-1, smooth_axes=-2, axes=None, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"), epsilon=0.0):
         if mode == "component":
             return self.component(x, edge_axis=edge_axis, smooth_axes=smooth_axes, same=same, padder=padder)
         elif mode == "magnitude":
@@ -119,7 +115,7 @@ class Scharr(EdgeDetector):
 
 
 class Farid(EdgeDetector):
-    def __init__(self, normalize=False):
+    def __init__(self, normalize=True):
         # These filter weights can be found in Farid & Simoncelli (2004),
         # Table 1 (3rd and 4th row). Additional decimal places were computed
         # using the code found at https://www.cs.dartmouth.edu/farid/
@@ -130,29 +126,20 @@ class Farid(EdgeDetector):
         super().__init__(edge_kernel=edge, smooth_kernel=smooth)
 
 
-# class EdgeMagnitude(nn.Module):
-#     def __init__(self, edge_component, epsilon=1e-8):
-#         super().__init__()
-#         self.component = edge_component
-#         self.epsilon = epsilon  # small constant to prevent overflow
-#
-#     def forward(self, x, axes=None, same=True, padder: GenericPadNd = None):
-#         axes = check_axes(x, axes)
-#         if len(axes) < 2:
-#             raise ValueError(f"Image gradient computation requires at least 2 axes, got {axes} instead")
-#
-#         magnitude = None
-#
-#         for i, edge_axis in enumerate(axes):
-#             # edge component at edge_axis
-#             c = self.component(x, edge_axis=edge_axis, smooth_axes=axes[:i]+axes[i+1:], same=same, padder=padder)
-#             if magnitude is None:
-#                 magnitude = c ** 2
-#             else:
-#                 magnitude += c ** 2
-#
-#         return torch.sqrt(magnitude + self.epsilon)
-
-
-
+class GaussianGrad(EdgeDetector):
+    def __init__(self, kernel_size, sigma, edge_kernel_size=None, edge_sigma=None, normalize=True):
+        kernel_size = NdSpec(kernel_size, item_shape=[])
+        sigma = NdSpec(sigma, item_shape=[])
+        smooth = NdSpec.apply(lambda ks, s: gaussian_kernel_1d(kernel_size=ks, sigma=s, order=0), kernel_size, sigma)                      
+        
+        if edge_kernel_size is None:
+            assert kernel_size.is_item
+            edge_kernel_size = kernel_size.data
+            
+        if edge_sigma is None:
+            assert sigma.is_item
+            edge_sigma = sigma.data
+        
+        edge = gaussian_kernel_1d(kernel_size=edge_kernel_size, sigma=edge_sigma, order=1)
+        super().__init__(edge_kernel=edge, smooth_kernel=smooth)
 

@@ -79,6 +79,21 @@ class MyTestCase(unittest.TestCase):
             with self.subTest(shape=x1.shape, edge_axis=-2, mode=ti_mode, name="sobel"):
                 self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
 
+    def test_gaussian_gradient(self):
+        sigma = 1
+        truncate = 8
+        for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+            ndim = np.random.randint(2, 5)
+            shape = np.random.randint(10, 20, size=ndim)
+            x1 = torch.rand(*shape, dtype=torch.float64)
+            x2 = x1.numpy()
+            expected = ndimage.gaussian_gradient_magnitude(x2, sigma=sigma, mode=ndimage_mode, truncate=truncate)
+            gg = edges.GaussianGrad(sigma=sigma, kernel_size=int(truncate*sigma*2+1))
+            # epsilon = 0 for precision
+            actual = gg.magnitude(x1, axes=None, padder=GenericPadNd(mode=ti_mode), epsilon=0.0).numpy()
+            with self.subTest(mode=ti_mode, shape=shape, sigma=sigma, truncate=truncate):
+                self.assertLess(np.abs(expected - actual).max(), 1e-15)
+
 
 if __name__ == '__main__':
     unittest.main()
