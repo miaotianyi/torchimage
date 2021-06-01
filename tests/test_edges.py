@@ -47,6 +47,38 @@ class MyTestCase(unittest.TestCase):
             with self.subTest(shape=x1.shape, detector=ti_cls, task="magnitude"):
                 self.assertLess(np.abs(actual_mag - expected_mag).max(), 1e-12)
 
+    def test_ndimage_sobel(self):
+        for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+            x1 = torch.rand(np.random.randint(10, 50), np.random.randint(10, 50), dtype=torch.float64)
+            x2 = x1.numpy()
+
+            sobel = edges.Sobel(normalize=False)
+            y_expected = ndimage.sobel(x2, axis=-1, mode=ndimage_mode)
+            y_actual = sobel.component(x1, -1, -2, same=True, padder=GenericPadNd(mode=ti_mode)).numpy()
+            with self.subTest(shape=x1.shape, edge_axis=-1, mode=ti_mode, name="sobel"):
+                self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
+
+            y_expected = ndimage.sobel(x2, axis=-2, mode=ndimage_mode)
+            y_actual = sobel.component(x1, -2, -1, same=True, padder=GenericPadNd(mode=ti_mode)).numpy()
+            with self.subTest(shape=x1.shape, edge_axis=-2, mode=ti_mode, name="sobel"):
+                self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
+
+    def test_ndimage_prewitt(self):
+        for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+            x1 = torch.rand(np.random.randint(10, 50), np.random.randint(10, 50), dtype=torch.float64)
+            x2 = x1.numpy()
+
+            prewitt = edges.Prewitt(normalize=False)
+            y_expected = ndimage.prewitt(x2, axis=-1, mode=ndimage_mode)
+            y_actual = prewitt.component(x1, -1, -2, same=True, padder=GenericPadNd(mode=ti_mode)).numpy()
+            with self.subTest(shape=x1.shape, edge_axis=-1, mode=ti_mode, name="sobel"):
+                self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
+
+            y_expected = ndimage.prewitt(x2, axis=-2, mode=ndimage_mode)
+            y_actual = prewitt.component(x1, -2, -1, same=True, padder=GenericPadNd(mode=ti_mode)).numpy()
+            with self.subTest(shape=x1.shape, edge_axis=-2, mode=ti_mode, name="sobel"):
+                self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -42,8 +42,9 @@ from ..utils import NdSpec
 from ..utils.validation import check_axes
 
 
-class EdgeDetector:
+class EdgeDetector(nn.Module):
     def __init__(self, edge_kernel, smooth_kernel, normalize=False):
+        super(EdgeDetector, self).__init__()
         self.edge_kernel = edge_kernel
         self.smooth_kernel = NdSpec(smooth_kernel, item_shape=[-1])
         if normalize:
@@ -53,7 +54,15 @@ class EdgeDetector:
                 return kernel.tolist()
             self.smooth_kernel = self.smooth_kernel.map(_reweight)
 
-    def component(self, x, edge_axis, smooth_axes, *, same=True, padder: GenericPadNd = None):
+    def forward(self, x, mode, *, edge_axis=-1, smooth_axes=-2, axes=None, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"), epsilon=1e-8):
+        if mode == "component":
+            return self.component(x, edge_axis=edge_axis, smooth_axes=smooth_axes, same=same, padder=padder)
+        elif mode == "magnitude":
+            return self.magnitude(x, axes=axes, same=same, padder=padder, epsilon=epsilon)
+        else:
+            raise ValueError(f"Edge detector mode must be component or magnitude, got {mode} instead")
+
+    def component(self, x, edge_axis, smooth_axes, *, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect")):
         edge_axis = check_axes(x, edge_axis)
         if len(edge_axis) != 1:
             raise ValueError(f"Only 1 edge axis is allowed, got {edge_axis} instead")
@@ -76,7 +85,7 @@ class EdgeDetector:
     def vertical(self, x, *, same=True, padder: GenericPadNd = None):
         return self.component(x, edge_axis=-1, smooth_axes=-2, same=same, padder=padder)
 
-    def magnitude(self, x, axes=None, *, same=True, padder: GenericPadNd = None, epsilon=1e-8):
+    def magnitude(self, x, axes=None, *, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"), epsilon=1e-8):
         axes = check_axes(x, axes)
         if len(axes) < 2:
             raise ValueError(f"Image gradient computation requires at least 2 axes, got {axes} instead")
