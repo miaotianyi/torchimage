@@ -24,7 +24,7 @@ class UnsharpMask(nn.Module):
         Ignore differences between x and blur(x) that are below threshold. Default: ``0.0``
     """
     def __init__(self, filter_layer, amount=0.5, threshold=0):
-        super(UnsharpMask2d, self).__init__()
+        super().__init__()
 
         self.filter_layer = filter_layer
         # examples:
