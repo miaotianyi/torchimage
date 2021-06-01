@@ -61,12 +61,38 @@ def gaussian_kernel_1d(kernel_size, sigma, order):
 
 
 class GaussianPoolNd(SeparablePoolNd):
+    """
+    N-dimensional Gaussian Pooling
+
+    This module is implemented using separable pooling.
+    Recall that Gaussian kernel is separable, i.e.
+    An n-dimensional Gaussian kernel is the outer product
+    of n 1D Gaussian kernels. N-dimensional Gaussian
+    convolution is equivalent to sequentially applying
+    n 1D Gaussian convolutions sequentially to each
+    axis of interest.
+    We can thus reduce the computational complexity
+    from O(Nk^d) to O(Nkd), where N is the number of elements
+    in the input tensor, k is kernel size, and d is
+    the number of dimensions to convolve.
+    """
     @staticmethod
     def _get_kernel(kernel_size, sigma, order):
         kernel_params = NdSpec.zip(NdSpec(kernel_size), NdSpec(sigma), NdSpec(order))
         return kernel_params.starmap(lambda ks, s, o: gaussian_kernel_1d(kernel_size=ks, sigma=s, order=o))
 
     def __init__(self, kernel_size, sigma, order=0, stride=None):
+        """
+        Parameters
+        ----------
+        kernel_size : int or sequence of int
+
+        sigma : float or sequence of float
+
+        order : int or sequence of int
+
+        stride : int, None, or sequence of int
+        """
         super(GaussianPoolNd, self).__init__(
             kernel=GaussianPoolNd._get_kernel(kernel_size=kernel_size, sigma=sigma, order=order), stride=stride)
 
