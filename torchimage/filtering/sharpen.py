@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from ..padding import GenericPadNd
 
 
 class UnsharpMask(nn.Module):
@@ -33,7 +34,7 @@ class UnsharpMask(nn.Module):
         self.amount = amount
         self.threshold = threshold
 
-    def forward(self, x: torch.Tensor, axes, padder):
+    def forward(self, x: torch.Tensor, axes=(-2, -1), padder=GenericPadNd(mode="reflect")):
         blurred = self.filter_layer(x, axes=axes, padder=padder)
         y = x - blurred
         if self.threshold > 0:
