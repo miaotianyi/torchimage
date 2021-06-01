@@ -11,11 +11,16 @@ easier to maintain.
 """
 
 from .base import SeparablePoolNd
+from .uniform import AveragePoolNd
+from .gaussian import GaussianPoolNd
+
 from .gaussian import GaussianPool
 from .generic import GenericPool2d, MedianPool2d, QuantilePool2d
 
 __all__ = [
     "SeparablePoolNd",
+    "GaussianPoolNd", "AveragePoolNd",
+
     "GaussianPool",
     "GenericPool2d", "MedianPool2d", "QuantilePool2d"
 ]
