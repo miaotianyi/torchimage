@@ -20,6 +20,9 @@ class SeparablePoolNd(nn.Module):
 
             Usually represented by a list/tuple/array of numbers.
 
+            If kernel is ``()`` at any axis, that axis will be ignored
+            in the forward method.
+
         stride : None, int, or a sequence thereof
             Convolution stride for each axis.
 
@@ -59,6 +62,9 @@ class SeparablePoolNd(nn.Module):
         kernel = NdSpec(self.kernel.map(lambda k: torch.tensor(k, dtype=x.dtype, device=x.device)), item_shape=[-1])
 
         for i, axis in enumerate(axes):
+            if len(kernel[i]) == 0:
+                continue
+
             if padder is not None:
                 x = padder.pad_axis(x, axis=axis)
 
@@ -69,3 +75,4 @@ class SeparablePoolNd(nn.Module):
 
             x = x.unfold(axis, size=self.kernel_size[i], step=stride) @ kernel[i]
         return x
+

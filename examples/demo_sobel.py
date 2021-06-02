@@ -6,7 +6,24 @@ import numpy as np
 from scipy import ndimage
 from skimage import data, filters
 from matplotlib import pyplot as plt
-from torchimage.pooling.sobel import sobel_x
+
+sobel_3_kernel_1 = (1, 2, 1)
+prewitt_3_kernel_1 = (1, 1, 1)
+scharr_3_kernel_1 = (3, 10, 3)
+general_3_kernel_2 = (-1, 0, 1)
+# general_3_kernel_2 = [-1, 0, 1]
+
+# horizontal derivative, G_x, detect vertical edges (corresponds to skimage's sobel_v)
+
+
+def sobel_x(image: torch.Tensor, axis_0: int = -2, axis_1: int = -1, stride: int = 1):
+    image = image.unfold(dimension=axis_0, size=3, step=stride) @ torch.tensor(sobel_3_kernel_1, device=image.device, dtype=image.dtype)
+    image = image.unfold(dimension=axis_1, size=3, step=stride) @ torch.tensor(general_3_kernel_2, device=image.device, dtype=image.dtype)
+    return image
+
+
+def sobel_y(image: torch.Tensor, axis_0: int = -2, axis_1: int = -1, stride: int = 1):
+    return sobel_x(image, axis_0=axis_1, axis_1=axis_0, stride=stride)
 
 
 def sobel_x_y(image: torch.Tensor, grayscale=True, mode="reflect"):
@@ -166,7 +183,6 @@ def calibrate_sobel():
     im = plt.imshow(edges, cmap="gray")
     plt.colorbar(im)
     plt.show()
-
 
     edges = filters.sobel_v(a)
     print(edges)
