@@ -53,6 +53,13 @@ def pool_to_filter(cls=SeparablePoolNd, same=True):
             else:  # generic pooling, doesn't support separable padding
                 padder = kwargs.pop("padder") if "padder" in kwargs else None
                 if padder is not None:
+                    if same:  # make same padder
+                        same_pad_width = self.kernel_size.map(_same_padding_pair)
+                        padder = GenericPadNd(pad_width=same_pad_width,
+                                              mode=padder.mode.data,
+                                              constant_values=padder.constant_values.data,
+                                              end_values=padder.end_values.data,
+                                              stat_length=padder.stat_length.data)
                     x = padder(x)
                 ba = signature(super().forward).bind(x, *args, **kwargs)
             return super().forward(*ba.args, **ba.kwargs)
