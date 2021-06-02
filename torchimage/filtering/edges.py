@@ -31,7 +31,7 @@ from torch import nn
 
 
 from ..pooling.gaussian import gaussian_kernel_1d, GaussianPoolNd
-from ..pooling.base import SeparablePoolNd
+from ..pooling.base import SeparablePoolNd, LaplacePoolNd
 from .decorator import pool_to_filter
 from ..padding import GenericPadNd
 from ..utils import NdSpec
@@ -81,7 +81,7 @@ class EdgeDetector(nn.Module):
     def vertical(self, x, *, same=True, padder: GenericPadNd = None):
         return self.component(x, edge_axis=-1, smooth_axes=-2, same=same, padder=padder)
 
-    def magnitude(self, x, axes=None, *, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"), epsilon=1e-8):
+    def magnitude(self, x, axes=None, *, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"), epsilon=0.0, p=2):
         axes = check_axes(x, axes)
         if len(axes) < 2:
             raise ValueError(f"Image gradient computation requires at least 2 axes, got {axes} instead")
@@ -92,11 +92,11 @@ class EdgeDetector(nn.Module):
             # edge component at edge_axis
             c = self.component(x, edge_axis=edge_axis, smooth_axes=axes[:i]+axes[i+1:], same=same, padder=padder)
             if magnitude is None:
-                magnitude = c ** 2
+                magnitude = c ** p
             else:
-                magnitude += c ** 2
+                magnitude += c ** p
 
-        return torch.sqrt(magnitude + epsilon)
+        return (magnitude + epsilon) ** (1/p)
 
 
 class Sobel(EdgeDetector):
@@ -127,7 +127,7 @@ class Farid(EdgeDetector):
 
 
 class GaussianGrad(EdgeDetector):
-    def __init__(self, kernel_size, sigma, edge_kernel_size=None, edge_sigma=None, normalize=True):
+    def __init__(self, kernel_size, sigma, edge_kernel_size=None, edge_sigma=None, normalize=True, edge_order=1):
         kernel_size = NdSpec(kernel_size, item_shape=[])
         sigma = NdSpec(sigma, item_shape=[])
         smooth = NdSpec.apply(lambda ks, s: gaussian_kernel_1d(kernel_size=ks, sigma=s, order=0), kernel_size, sigma)                      
@@ -139,7 +139,20 @@ class GaussianGrad(EdgeDetector):
         if edge_sigma is None:
             assert sigma.is_item
             edge_sigma = sigma.data
-        
-        edge = gaussian_kernel_1d(kernel_size=edge_kernel_size, sigma=edge_sigma, order=1)
+        edge = gaussian_kernel_1d(kernel_size=edge_kernel_size, sigma=edge_sigma, order=edge_order)
+        self.edge_order = edge_order
         super().__init__(edge_kernel=edge, smooth_kernel=smooth)
 
+
+class LaplacianOfGaussian(nn.Module):
+    """
+    The same as scipy.ndimage.gaussian_laplace
+    """
+    def __init__(self, kernel_size, sigma):
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.sigma = sigma
+
+    def forward(self, x: torch.Tensor, axes=None, *, same=True, padder=GenericPadNd(mode="reflect")):
+        gg = GaussianGrad(kernel_size=self.kernel_size, sigma=self.sigma, edge_order=2)
+        return gg.magnitude(x, axes=axes, same=same, padder=padder, epsilon=0.0, p=1)

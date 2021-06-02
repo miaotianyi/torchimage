@@ -6,7 +6,8 @@ import numpy as np
 from skimage import filters
 from scipy import ndimage
 
-from torchimage.filtering import edges
+from torchimage.filtering import edges, pool_to_filter
+from torchimage.pooling import LaplacePoolNd, GaussianPoolNd
 from torchimage.padding import GenericPadNd
 
 
@@ -93,6 +94,32 @@ class MyTestCase(unittest.TestCase):
             actual = gg.magnitude(x1, axes=None, padder=GenericPadNd(mode=ti_mode), epsilon=0.0).numpy()
             with self.subTest(mode=ti_mode, shape=shape, sigma=sigma, truncate=truncate):
                 self.assertLess(np.abs(expected - actual).max(), 1e-15)
+
+    def test_laplace(self):
+        LaplaceFilter = pool_to_filter(LaplacePoolNd)
+        laplace_1 = LaplaceFilter()
+        for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+            x1 = torch.rand(30, 23, dtype=torch.float64)
+            x2 = x1.numpy()
+            y_actual = laplace_1(x1, axes=None, padder=GenericPadNd(mode=ti_mode)).numpy()
+            y_expected = ndimage.laplace(x2, mode=ndimage_mode)
+            with self.subTest(mode=ti_mode):
+                self.assertLess(np.abs(y_actual - y_expected).max(), 1e-15)
+
+    def test_log(self):
+        sigma = 1.5
+        truncate = 2
+        ks = int(sigma * truncate * 2 + 1)
+
+        from matplotlib import pyplot as plt
+
+        for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+            x1 = torch.rand(17, 24, dtype=torch.float64)
+            x2 = x1.numpy()
+            y_actual = edges.LaplacianOfGaussian(kernel_size=ks, sigma=sigma)(x1, padder=GenericPadNd(mode=ti_mode)).numpy()
+            y_expected = ndimage.gaussian_laplace(x2, sigma=sigma, mode=ndimage_mode, truncate=truncate)
+            with self.subTest(mode=ti_mode):
+                self.assertLess(np.abs(y_actual - y_expected).max(), 1e-15)
 
 
 if __name__ == '__main__':
