@@ -21,6 +21,9 @@ def _same_padding_pair(kernel_size):
     pad_end : int
         Number of padding at the end of the axis
     """
+    if kernel_size <= 1:
+        return 0, 0
+
     pad_beg = kernel_size // 2
     if kernel_size % 2 == 1:  # odd kernel size, most common
         pad_end = pad_beg

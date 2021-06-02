@@ -30,8 +30,8 @@ import torch
 from torch import nn
 
 
-from ..pooling.gaussian import gaussian_kernel_1d, GaussianPoolNd
-from ..pooling.base import SeparablePoolNd, LaplacePoolNd
+from ..pooling.gaussian import gaussian_kernel_1d
+from ..pooling.base import SeparablePoolNd
 from .decorator import pool_to_filter
 from ..padding import GenericPadNd
 from ..utils import NdSpec
@@ -50,11 +50,13 @@ class EdgeDetector(nn.Module):
                 return kernel.tolist()
             self.smooth_kernel = self.smooth_kernel.map(_reweight)
 
-    def forward(self, x, mode, *, edge_axis=-1, smooth_axes=-2, axes=None, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"), epsilon=0.0):
+    def forward(self, x, mode, *, edge_axis=-1, smooth_axes=-2, axes=None,
+                same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"),
+                epsilon=0.0, p=2):
         if mode == "component":
             return self.component(x, edge_axis=edge_axis, smooth_axes=smooth_axes, same=same, padder=padder)
         elif mode == "magnitude":
-            return self.magnitude(x, axes=axes, same=same, padder=padder, epsilon=epsilon)
+            return self.magnitude(x, axes=axes, same=same, padder=padder, epsilon=epsilon, p=p)
         else:
             raise ValueError(f"Edge detector mode must be component or magnitude, got {mode} instead")
 
@@ -142,6 +144,43 @@ class GaussianGrad(EdgeDetector):
         edge = gaussian_kernel_1d(kernel_size=edge_kernel_size, sigma=edge_sigma, order=edge_order)
         self.edge_order = edge_order
         super().__init__(edge_kernel=edge, smooth_kernel=smooth)
+
+
+class Laplace(EdgeDetector):
+    """
+    Edge detection with discrete Laplace operator
+
+    Unlike SeparablePoolNd, which sequentially applies
+    1d convolution on previous output at each axis,
+    LaplacePoolNd simultaneously applies the kernel to
+    each axis, generating n output tensors in parallel;
+    these output tensors are then added to obtain a
+    final output.
+    Therefore, the equivalent kernel of SeparablePoolNd
+    is the outer product of each 1d kernel; the equivalent
+    kernel of LaplacePoolNd is the sum of 1d kernels
+    (after they are expanded to the total number of dimensions).
+
+    For instance, 1d Laplace is [1, -2, 1] and 2d Laplace is
+    [[0, 1, 0],
+     [1, -4, 1],
+     [0, 1, 0]]
+
+    This method is less general than scipy's generic_laplace,
+    because we cannot customize a non-separable second derivative
+    function.
+
+    This requires every 1d pooling to return a tensor of exactly the
+    same shape, so we recommend ``same=True``.
+    """
+    def __init__(self):
+        super().__init__(edge_kernel=(1, -2, 1), smooth_kernel=(), normalize=False)
+
+    def forward(self, x, mode="magnitude", *, edge_axis=-1, smooth_axes=-2, axes=None,
+                same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"),
+                epsilon=0.0, p=1):
+        return super().forward(x=x, mode=mode, edge_axis=edge_axis, smooth_axes=smooth_axes, axes=axes,
+                               same=same, padder=padder, epsilon=epsilon, p=p)
 
 
 class LaplacianOfGaussian(nn.Module):

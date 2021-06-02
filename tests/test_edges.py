@@ -6,8 +6,7 @@ import numpy as np
 from skimage import filters
 from scipy import ndimage
 
-from torchimage.filtering import edges, pool_to_filter
-from torchimage.pooling import LaplacePoolNd, GaussianPoolNd
+from torchimage.filtering import edges
 from torchimage.padding import GenericPadNd
 
 
@@ -95,13 +94,12 @@ class MyTestCase(unittest.TestCase):
             with self.subTest(mode=ti_mode, shape=shape, sigma=sigma, truncate=truncate):
                 self.assertLess(np.abs(expected - actual).max(), 1e-15)
 
-    def test_laplace(self):
-        LaplaceFilter = pool_to_filter(LaplacePoolNd)
-        laplace_1 = LaplaceFilter()
+    def test_laplace_2(self):
+        laplace_2 = edges.Laplace()
         for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
             x1 = torch.rand(30, 23, dtype=torch.float64)
             x2 = x1.numpy()
-            y_actual = laplace_1(x1, axes=None, padder=GenericPadNd(mode=ti_mode)).numpy()
+            y_actual = laplace_2(x1, axes=None, padder=GenericPadNd(mode=ti_mode),).numpy()
             y_expected = ndimage.laplace(x2, mode=ndimage_mode)
             with self.subTest(mode=ti_mode):
                 self.assertLess(np.abs(y_actual - y_expected).max(), 1e-15)
