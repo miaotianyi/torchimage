@@ -1,5 +1,7 @@
 """
 Miscellaneous utilities that do not yet belong to a certain package.
+
+These functions might not be useful anymore
 """
 
 

@@ -5,7 +5,7 @@ import math
 import torch
 from torch import nn
 
-from ..misc import _repeat_tuple, conv2d_shape_infer
+from ..misc.legacy import _repeat_tuple, conv2d_shape_infer
 
 
 class GenericPool2d(nn.Module):

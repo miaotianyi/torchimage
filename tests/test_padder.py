@@ -10,7 +10,7 @@ from torchimage.padding.generic_pad import GenericPadNd, _stat_padding_set
 class MyTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.tol = 1e-8
-        self.n_trials = 20
+        self.n_trials = 10
 
     def assertArrayEqual(self, a, b, tol=None, msg=None):
         if tol is None:

@@ -4,8 +4,11 @@ import torch
 def poly1d(x: torch.Tensor, p: list or tuple):
     """
     Calculate single-variable (one-dimensional) polynomial
+    ``y = a_n * x^n + ... + a_2 * x^2 + a_1 * x + a_0``
 
-    y = a_n x^n + ... + a_2 x^2 + a_1 x + a_0
+    The extra memory required by this function is at most
+    2 times the size of x, one to store the output tensor
+    and the other to keep a running ith power of x.
 
     Parameters
     ----------
