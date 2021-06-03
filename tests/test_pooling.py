@@ -1,6 +1,6 @@
 import unittest
 
-from torchimage.linalg import outer
+from torchimage.misc import outer
 from torchimage.padding import GenericPadNd
 from torchimage.pooling.base import SeparablePoolNd
 from torchimage.pooling.gaussian import GaussianPoolNd
