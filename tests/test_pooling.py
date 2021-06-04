@@ -57,7 +57,7 @@ class MyTestCase(unittest.TestCase):
                 kernel_size = np.random.randint(1, 10, size=ndim)
                 kernels = [np.random.rand(ks) for ks in kernel_size]
                 shape = tuple(np.random.randint(20, 50, size=ndim))
-                x = torch.rand(*shape)
+                x = torch.rand(*shape, dtype=torch.float64)
                 full_conv_tensor = reduce(outer, kernels)
                 # note that convolve in neural network is correlate in signal processing
                 y_ndimage = ndimage.correlate(x.numpy(), weights=full_conv_tensor, mode=ndimage_mode)
