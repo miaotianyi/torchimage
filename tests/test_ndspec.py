@@ -103,7 +103,7 @@ class MyTestCase(unittest.TestCase):
     def test_filter_list_2(self):
         a = NdSpec(2, item_shape=[-1])
         self.assertEqual((2,), a[0])
-        self.assertEqual("NdSpec(data=(2,), item_shape=(-1,))", str(a))
+        self.assertEqual("NdSpec(data=(2,), item_shape=(-1,), index_shape=())", str(a))
 
     def test_index_tuple_1(self):
         d1 = [1, 2]
