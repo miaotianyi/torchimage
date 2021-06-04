@@ -33,7 +33,7 @@ from torch import nn
 from ..pooling.gaussian import gaussian_kernel_1d
 from ..pooling.base import SeparablePoolNd
 from .decorator import pool_to_filter
-from ..padding import GenericPadNd
+from ..padding import Padder
 from ..utils import NdSpec
 from ..utils.validation import check_axes
 
@@ -51,7 +51,7 @@ class EdgeDetector(nn.Module):
             self.smooth_kernel = self.smooth_kernel.map(_reweight)
 
     def forward(self, x, mode, *, edge_axis=-1, smooth_axes=-2, axes=None,
-                same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"),
+                same=True, padder: Padder = Padder(mode="reflect"),
                 epsilon=0.0, p=2):
         if mode == "component":
             return self.component(x, edge_axis=edge_axis, smooth_axes=smooth_axes, same=same, padder=padder)
@@ -60,7 +60,7 @@ class EdgeDetector(nn.Module):
         else:
             raise ValueError(f"Edge detector mode must be component or magnitude, got {mode} instead")
 
-    def component(self, x, edge_axis, smooth_axes, *, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect")):
+    def component(self, x, edge_axis, smooth_axes, *, same=True, padder: Padder = Padder(mode="reflect")):
         edge_axis = check_axes(x, edge_axis)
         if len(edge_axis) != 1:
             raise ValueError(f"Only 1 edge axis is allowed, got {edge_axis} instead")
@@ -77,13 +77,13 @@ class EdgeDetector(nn.Module):
         x = smooth_filter(x, axes=smooth_axes, padder=padder)
         return x
 
-    def horizontal(self, x, *, same=True, padder: GenericPadNd = None):
+    def horizontal(self, x, *, same=True, padder: Padder = None):
         return self.component(x, edge_axis=-2, smooth_axes=-1, same=same, padder=padder)
 
-    def vertical(self, x, *, same=True, padder: GenericPadNd = None):
+    def vertical(self, x, *, same=True, padder: Padder = None):
         return self.component(x, edge_axis=-1, smooth_axes=-2, same=same, padder=padder)
 
-    def magnitude(self, x, axes=None, *, same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"), epsilon=0.0, p=2):
+    def magnitude(self, x, axes=None, *, same=True, padder: Padder = Padder(mode="reflect"), epsilon=0.0, p=2):
         axes = check_axes(x, axes)
         if len(axes) < 2:
             raise ValueError(f"Image gradient computation requires at least 2 axes, got {axes} instead")
@@ -177,7 +177,7 @@ class Laplace(EdgeDetector):
         super().__init__(edge_kernel=(1, -2, 1), smooth_kernel=(), normalize=False)
 
     def forward(self, x, mode="magnitude", *, edge_axis=-1, smooth_axes=-2, axes=None,
-                same=True, padder: GenericPadNd = GenericPadNd(mode="reflect"),
+                same=True, padder: Padder = Padder(mode="reflect"),
                 epsilon=0.0, p=1):
         return super().forward(x=x, mode=mode, edge_axis=edge_axis, smooth_axes=smooth_axes, axes=axes,
                                same=same, padder=padder, epsilon=epsilon, p=p)
@@ -192,6 +192,6 @@ class LaplacianOfGaussian(nn.Module):
         self.kernel_size = kernel_size
         self.sigma = sigma
 
-    def forward(self, x: torch.Tensor, axes=None, *, same=True, padder=GenericPadNd(mode="reflect")):
+    def forward(self, x: torch.Tensor, axes=None, *, same=True, padder=Padder(mode="reflect")):
         gg = GaussianGrad(kernel_size=self.kernel_size, sigma=self.sigma, edge_order=2)
         return gg.magnitude(x, axes=axes, same=same, padder=padder, epsilon=0.0, p=1)

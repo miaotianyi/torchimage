@@ -33,7 +33,7 @@ def _check_padding_mode(mode):
         .union(_other_padding_set).union(_padding_function_dict.keys())
 
 
-class GenericPadNd(nn.Module):
+class Padder(nn.Module):
     def __init__(self, pad_width=0, mode="constant", constant_values=0, end_values=0.0, stat_length=None):
         """
         Parameters
@@ -75,7 +75,7 @@ class GenericPadNd(nn.Module):
             For each axis, this number will be clipped by ``(1, length)`` where
             ``length`` is the side length of the original tensor.
         """
-        super(GenericPadNd, self).__init__()
+        super(Padder, self).__init__()
 
         self.pad_width = NdSpec(pad_width, item_shape=[2])
 

@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from ..padding.generic_pad import GenericPadNd
+from ..padding.generic_pad import Padder
 from ..utils import NdSpec
 from ..utils.validation import check_axes
 
@@ -33,7 +33,7 @@ class SeparablePoolNd(nn.Module):
         self.kernel_size = NdSpec(self.kernel.map(len), item_shape=[])
         self.stride = NdSpec(stride, item_shape=[])
 
-    def forward(self, x: torch.Tensor, axes=None, padder: GenericPadNd = None):
+    def forward(self, x: torch.Tensor, axes=None, padder: Padder = None):
         """
         Perform separable pooling on a tensor.
 
@@ -48,7 +48,7 @@ class SeparablePoolNd(nn.Module):
             Axes can be repeated. If ``None``, it will be all the axes
             from axis 0 to the last axis.
 
-        padder : GenericPadNd
+        padder : Padder
             A padder that performs axis-wise padding immediately before an axis
             is convolved (1d separable convolution).
 
