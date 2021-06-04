@@ -2,6 +2,7 @@
 Private utility functions for padding
 """
 import torch
+from math import ceil
 
 
 def make_idx(*args, dim, ndim):
@@ -58,6 +59,22 @@ def modify_idx(*args, idx, dim):
     new_idx = list(idx)
     new_idx[dim] = slice(*args)
     return tuple(new_idx)
+
+
+def same_padding_width(kernel_size, stride=1, in_size=None):
+    if stride == 1:
+        pad_total = kernel_size - 1
+    else:
+        if in_size is None:
+            raise ValueError(f"when stride={stride} instead of 1, in_size is required for same padding width")
+        # expected output tensor size at axis with same padding
+        out_size = ceil(in_size / stride)  # in_size == outsize with stride=1
+        pad_total = (out_size - 1) * stride + kernel_size - in_size
+
+    pad_total = max(pad_total, 0)
+    pad_before = pad_total // 2
+    pad_after = pad_total - pad_before
+    return pad_before, pad_after
 
 
 def _check_padding(x, pad):
