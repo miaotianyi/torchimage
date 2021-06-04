@@ -133,7 +133,7 @@ class NdSpec:
     is the number of padded dimensions). Therefore, torchimage
     aims to get the best of both worlds with this new format.
     """
-    def __init__(self, data, item_shape=()):
+    def __init__(self, data, *, item_shape=(), index_shape=None):
         """
         Parameters
         ----------
@@ -154,19 +154,32 @@ class NdSpec:
             axis, use ``-1`` to denote the item shape there.
             e.g. if the input data is a kernel (1d array)
             or a list of kernels with potentially different lengths.
+
+        index_shape : tuple or None
+            Expected index shape of an item. Default is None (unknown,
+            automatically infer from data and item_shape).
+
+            Use -1 in the index shape to denote that the length of that
+            axis doesn't matter.
         """
         if isinstance(data, NdSpec):  # constructor from NdSpec; shallow copy
-            self.__init__(data.data, data.item_shape)
+            self.__init__(data.data, index_shape=data.index_shape)
             return
 
-        self.item_shape = tuple(int(x) for x in item_shape)
         data, shape = get_ragged_ndarray(data, strict=True)
-        data, shape = expand_ragged_ndarray(data, old_shape=shape, new_shape=self.item_shape)
+
+        if index_shape is None:
+            self.item_shape = tuple(int(x) for x in item_shape)
+            data, shape = expand_ragged_ndarray(data, old_shape=shape, new_shape=self.item_shape)
+        else:  # ignore item shape
+            if not all(length == -1 or shape[i] == length for i, length in enumerate(index_shape)):
+                raise ValueError(f"Data {data} cannot have index shape {index_shape}")
+            self.item_shape = shape[len(index_shape):]
 
         self.data = data
+        self.shape = shape
         self.ndim = len(shape)
         self.is_item = self.ndim == len(item_shape)
-        self.shape = shape
         self.index_shape = self.shape[:self.ndim - len(item_shape)]
 
     def __len__(self):
@@ -215,10 +228,10 @@ class NdSpec:
 
         Returns
         -------
-        ret : object or tuple of objects
-            Output from applying the function element-wise
+        ret : NdSpec
+            Output from applying the function element-wise; index shape is maintained
         """
-        return apply_ragged_ndarray(self.data, func=func, depth=self.ndim - len(self.item_shape))
+        return NdSpec(apply_ragged_ndarray(self.data, func=func, depth=self.ndim - len(self.item_shape)), index_shape=self.index_shape)
 
     def starmap(self, func):
         """
@@ -235,8 +248,8 @@ class NdSpec:
 
         Returns
         -------
-        ret : object or tuple of objects
-            Output from applying the function element-wise
+        ret : NdSpec
+            Output from applying the function element-wise; index shape is maintained
         """
         def func_star(item):
             return func(*item)
@@ -341,11 +354,7 @@ class NdSpec:
                 data[i] = func(*[a[i] for a in args])
             data = data.tolist()
 
-        # TODO: this causes repeated computation
-        #   find ways to avoid using get_ragged_array twice
-        #   maybe initialize NdSpec with index_shape as well?
-        data, shape = get_ragged_ndarray(data, strict=True)
-        return NdSpec(data, item_shape=shape[len(index_shape):])
+        return NdSpec(data, index_shape=index_shape)
 
 
 
