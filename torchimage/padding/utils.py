@@ -62,6 +62,43 @@ def modify_idx(*args, idx, dim):
 
 
 def same_padding_width(kernel_size, stride=1, in_size=None):
+    """
+    Calculate the padding width before and after a certain axis
+    using "same padding" method.
+
+    When stride is 1, input size at that axis doesn't matter
+    and the output tensor will have the same shape as the
+    input tensor, hence the name "same padding".
+
+    When stride is greater than 1, same padding can be intuitively
+    described as "letting the kernel cover every element of
+    the original tensor, while making padding width before and
+    after the axis roughly the same." (unlike valid padding,
+    which doesn't pad at all and the last pixels will be ignored
+    if input tensor's side length doesn't match kernel size and stride)
+
+    This convention is taken from a TensorFlow documentation page
+    which no longer exists.
+
+    Parameters
+    ----------
+    kernel_size : int
+        The convolution kernel size at that axis
+
+    stride : int
+        The convolution stride at that axis. Default: 1.
+
+    in_size : int
+        The side length of the input tensor at that axis.
+
+        Can be None if stride is 1.
+
+    Returns
+    -------
+    pad_before, pad_after : int
+        The number of padded elements required by same padding
+        before and after the axis.
+    """
     if stride == 1:
         pad_total = kernel_size - 1
     else:
