@@ -6,7 +6,7 @@ from ..utils.validation import check_axes
 
 
 class SeparablePoolNd(nn.Module):
-    def __init__(self, kernel, stride=None):
+    def __init__(self, kernel, stride=None, *, padder: Padder = None, separable_pad=False):
         """
         N-dimensional separable pooling
 
@@ -20,20 +20,37 @@ class SeparablePoolNd(nn.Module):
 
             Usually represented by a list/tuple/array of numbers.
 
-            If kernel is ``()`` at any axis, that axis will be ignored
+            If kernel is empty at any axis, that axis will be ignored
             in the forward method.
 
         stride : None, int, or a sequence thereof
             Convolution stride for each axis.
 
             If ``None``, it is the same as the kernel size at that axis.
+
+        padder : Padder
+            Pad the input tensor with this padder.
+
+        separable_pad : bool
+            If True, pad each axis only before the separable convolution
+            at that axis. Otherwise, pad the entire tensor before performing
+            all convolution steps. Default: False.
+
+            Setting ``separable_pad=True`` may lead to more intermediate
+            tensors stored in the computational graph if any of the ancestors
+            requires gradient. It is also slower unless the dimension
+            is really high and the padding width far exceeds the input
+            tensor size.
         """
         super(SeparablePoolNd, self).__init__()
         self.kernel = NdSpec(kernel, item_shape=[-1])
         self.kernel_size = NdSpec(self.kernel.map(len), item_shape=[])
         self.stride = NdSpec(stride, item_shape=[])
 
-    def forward(self, x: torch.Tensor, axes=None, padder: Padder = None):
+        self.padder = padder
+        self.separable_pad = separable_pad
+
+    def forward(self, x: torch.Tensor, axes=slice(2, None), padder: Padder = None):
         """
         Perform separable pooling on a tensor.
 
