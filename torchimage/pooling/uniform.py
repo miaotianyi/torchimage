@@ -1,3 +1,6 @@
+import torch
+from torch import nn
+
 import numpy as np
 
 from .base import SeparablePoolNd
@@ -15,3 +18,15 @@ class AveragePoolNd(SeparablePoolNd):
 
     def __init__(self, kernel_size, stride=None):
         super().__init__(kernel=AveragePoolNd._get_kernel(kernel_size=kernel_size), stride=stride)
+
+
+class AvgPoolNew(nn.Module):
+    def __init__(self, kernel_size, stride, count_include_pad=True):
+        super().__init__()
+        self.kernel_size = NdSpec(kernel_size, item_shape=[])
+        self.stride = NdSpec(stride, item_shape=[])
+        NdSpec.agg_index_shape(self.kernel_size, self.stride)
+        self.count_include_pad = count_include_pad
+
+
+
