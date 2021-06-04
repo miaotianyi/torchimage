@@ -163,24 +163,40 @@ class NdSpec:
             axis doesn't matter.
         """
         if isinstance(data, NdSpec):  # constructor from NdSpec; shallow copy
-            self.__init__(data.data, index_shape=data.index_shape)
+            self.data = data.data
+            self.shape = data.shape
+            self.index_pos = data.index_pos
             return
 
         data, shape = get_ragged_ndarray(data, strict=True)
 
         if index_shape is None:
-            self.item_shape = tuple(int(x) for x in item_shape)
-            data, shape = expand_ragged_ndarray(data, old_shape=shape, new_shape=self.item_shape)
+            item_shape = tuple(int(x) for x in item_shape)
+            data, shape = expand_ragged_ndarray(data, old_shape=shape, new_shape=item_shape)
+            self.index_pos = len(shape) - len(item_shape)
         else:  # ignore item shape
             if not all(length == -1 or shape[i] == length for i, length in enumerate(index_shape)):
                 raise ValueError(f"Data {data} cannot have index shape {index_shape}")
-            self.item_shape = shape[len(index_shape):]
+            self.index_pos = len(index_shape)
 
         self.data = data
         self.shape = shape
-        self.ndim = len(shape)
-        self.is_item = self.ndim == len(item_shape)
-        self.index_shape = self.shape[:self.ndim - len(item_shape)]
+
+    @property
+    def ndim(self):
+        return len(self.shape)
+
+    @property
+    def item_shape(self):
+        return self.shape[self.index_pos:]
+
+    @property
+    def index_shape(self):
+        return self.shape[:self.index_pos]
+
+    @property
+    def is_item(self):
+        return self.index_pos == 0
 
     def __len__(self):
         """
@@ -215,7 +231,7 @@ class NdSpec:
             return (self[i] for i in range(len(self)))
 
     def __repr__(self):
-        return f"NdSpec(data={self.data}, item_shape={self.item_shape})"
+        return f"NdSpec(data={self.data}, item_shape={self.item_shape}, index_shape={self.index_shape})"
 
     def map(self, func):
         """
