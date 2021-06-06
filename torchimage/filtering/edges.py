@@ -5,14 +5,6 @@ Predefined edge detection filters
 "convolution" as in convolutional neural networks is actually cross-correlation in signal processing
 Whereas the "convolution" in signal processing actually flips the kernel before calculating.
 
-
-what is laplace?
-
-ndimage specification
-sobel, prewitt
-array, axis, padding params
-axis: The axis of input along which to calculate. Default is -1
-
 algorithmically, ndimage sets all other axes from 0 to ndim-1 as smooth axes, and compute the direction
 then. (cannot exclude axes)
 ndimage DOES NOT support gradient magnitude
@@ -23,6 +15,7 @@ Take sobel as example, [-1, 0, 1] are multiplied exactly as stated, whereas they
 MATLAB filtering module
 The end goal of torchimage is to replace MatLab's image processing toolbox
 
+Comparison: skimage, scipy, MatLab, Kornia
 
 """
 import numpy as np
@@ -32,15 +25,16 @@ from torch import nn
 
 from ..pooling.gaussian import gaussian_kernel_1d
 from ..pooling.base import SeparablePoolNd
-from .decorator import pool_to_filter
 from ..padding import Padder
 from ..utils import NdSpec
 from ..utils.validation import check_axes
 
 
-class EdgeDetector(nn.Module):
-    def __init__(self, edge_kernel, smooth_kernel, normalize=False):
+class EdgeDetector:  # (nn.Module):
+    def __init__(self, edge_kernel, smooth_kernel, normalize=False, padder: Padder = None, *, separable_pad=False):
         super(EdgeDetector, self).__init__()
+
+        # initialize kernels/weights
         self.edge_kernel = edge_kernel
         self.smooth_kernel = NdSpec(smooth_kernel, item_shape=[-1])
         if normalize:
@@ -50,17 +44,26 @@ class EdgeDetector(nn.Module):
                 return kernel.tolist()
             self.smooth_kernel = self.smooth_kernel.map(_reweight)
 
-    def forward(self, x, mode, *, edge_axis=-1, smooth_axes=-2, axes=None,
-                same=True, padder: Padder = Padder(mode="reflect"),
+        # initialize padder
+        self.padder = padder
+        self.separable_pad = separable_pad
+
+        # initialize filters
+        self.edge_filter = SeparablePoolNd(
+            kernel=self.edge_kernel, padder=self.padder, separable_pad=self.separable_pad).to_filter()
+        self.smooth_filter = SeparablePoolNd(
+            kernel=self.smooth_kernel, padder=self.padder, separable_pad=self.separable_pad).to_filter()
+
+    def forward(self, x, mode="magnitude", *, edge_axis=-1, smooth_axes=-2, axes=None,
                 epsilon=0.0, p=2):
         if mode == "component":
-            return self.component(x, edge_axis=edge_axis, smooth_axes=smooth_axes, same=same, padder=padder)
+            return self.component(x, edge_axis=edge_axis, smooth_axes=smooth_axes)
         elif mode == "magnitude":
-            return self.magnitude(x, axes=axes, same=same, padder=padder, epsilon=epsilon, p=p)
+            return self.magnitude(x, axes=axes, epsilon=epsilon, p=p)
         else:
             raise ValueError(f"Edge detector mode must be component or magnitude, got {mode} instead")
 
-    def component(self, x, edge_axis, smooth_axes, *, same=True, padder: Padder = Padder(mode="reflect")):
+    def component(self, x, edge_axis, smooth_axes):
         edge_axis = check_axes(x, edge_axis)
         if len(edge_axis) != 1:
             raise ValueError(f"Only 1 edge axis is allowed, got {edge_axis} instead")
@@ -69,21 +72,17 @@ class EdgeDetector(nn.Module):
             # happens when smooth_axes is initially None (all axes)
             smooth_axes = tuple(a for a in smooth_axes if a != edge_axis)
 
-        SeparableFilterNd = pool_to_filter(SeparablePoolNd, same=same)
-
-        edge_filter = SeparableFilterNd(kernel=self.edge_kernel)
-        x = edge_filter(x, axes=edge_axis, padder=padder)
-        smooth_filter = SeparableFilterNd(kernel=self.smooth_kernel)
-        x = smooth_filter(x, axes=smooth_axes, padder=padder)
+        x = self.edge_filter.forward(x, axes=edge_axis)
+        x = self.smooth_filter.forward(x, axes=smooth_axes)
         return x
 
-    def horizontal(self, x, *, same=True, padder: Padder = None):
-        return self.component(x, edge_axis=-2, smooth_axes=-1, same=same, padder=padder)
+    def horizontal(self, x):
+        return self.component(x, edge_axis=-2, smooth_axes=-1)
 
-    def vertical(self, x, *, same=True, padder: Padder = None):
-        return self.component(x, edge_axis=-1, smooth_axes=-2, same=same, padder=padder)
+    def vertical(self, x):
+        return self.component(x, edge_axis=-1, smooth_axes=-2)
 
-    def magnitude(self, x, axes=None, *, same=True, padder: Padder = Padder(mode="reflect"), epsilon=0.0, p=2):
+    def magnitude(self, x, axes=None, *, epsilon=0.0, p=2):
         axes = check_axes(x, axes)
         if len(axes) < 2:
             raise ValueError(f"Image gradient computation requires at least 2 axes, got {axes} instead")
@@ -92,7 +91,7 @@ class EdgeDetector(nn.Module):
 
         for i, edge_axis in enumerate(axes):
             # edge component at edge_axis
-            c = self.component(x, edge_axis=edge_axis, smooth_axes=axes[:i]+axes[i+1:], same=same, padder=padder)
+            c = self.component(x, edge_axis=edge_axis, smooth_axes=axes[:i]+axes[i+1:])
             if magnitude is None:
                 magnitude = c ** p
             else:
@@ -102,22 +101,25 @@ class EdgeDetector(nn.Module):
 
 
 class Sobel(EdgeDetector):
-    def __init__(self, normalize=False):
-        super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(1, 2, 1), normalize=normalize)
+    def __init__(self, normalize=False, padder=Padder(mode="reflect"), *, separable_pad=False):
+        super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(1, 2, 1), normalize=normalize,
+                         padder=padder, separable_pad=separable_pad)
 
 
 class Prewitt(EdgeDetector):
-    def __init__(self, normalize=False):
-        super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(1, 1, 1), normalize=normalize)
+    def __init__(self, normalize=False, padder=Padder(mode="reflect"), *, separable_pad=False):
+        super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(1, 1, 1), normalize=normalize,
+                         padder=padder, separable_pad=separable_pad)
 
 
 class Scharr(EdgeDetector):
-    def __init__(self, normalize=False):
-        super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(3, 10, 3), normalize=normalize)
+    def __init__(self, normalize=False, padder=Padder(mode="reflect"), *, separable_pad=False):
+        super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(3, 10, 3), normalize=normalize,
+                         padder=padder, separable_pad=separable_pad)
 
 
 class Farid(EdgeDetector):
-    def __init__(self, normalize=True):
+    def __init__(self, normalize=True, padder=Padder(mode="reflect"), *, separable_pad=False):
         # These filter weights can be found in Farid & Simoncelli (2004),
         # Table 1 (3rd and 4th row). Additional decimal places were computed
         # using the code found at https://www.cs.dartmouth.edu/farid/
@@ -125,11 +127,13 @@ class Farid(EdgeDetector):
         # smooth kernel already normalized
         smooth = [0.0376593171958126, 0.249153396177344, 0.426374573253687, 0.249153396177344, 0.0376593171958126]
         edge = [-0.109603762960254, -0.276690988455557, 0, 0.276690988455557, 0.109603762960254]
-        super().__init__(edge_kernel=edge, smooth_kernel=smooth)
+        super().__init__(edge_kernel=edge, smooth_kernel=smooth,
+                         padder=padder, separable_pad=separable_pad)
 
 
 class GaussianGrad(EdgeDetector):
-    def __init__(self, kernel_size, sigma, edge_kernel_size=None, edge_sigma=None, normalize=True, edge_order=1):
+    def __init__(self, kernel_size, sigma, edge_kernel_size=None, edge_sigma=None, normalize=True, edge_order=1,
+                 padder=Padder(mode="reflect"), *, separable_pad=False):
         kernel_size = NdSpec(kernel_size, item_shape=[])
         sigma = NdSpec(sigma, item_shape=[])
         smooth = NdSpec.apply(lambda ks, s: gaussian_kernel_1d(kernel_size=ks, sigma=s, order=0), kernel_size, sigma)                      
@@ -143,7 +147,8 @@ class GaussianGrad(EdgeDetector):
             edge_sigma = sigma.data
         edge = gaussian_kernel_1d(kernel_size=edge_kernel_size, sigma=edge_sigma, order=edge_order)
         self.edge_order = edge_order
-        super().__init__(edge_kernel=edge, smooth_kernel=smooth)
+        super().__init__(edge_kernel=edge, smooth_kernel=smooth,
+                         padder=padder, separable_pad=separable_pad)
 
 
 class Laplace(EdgeDetector):
@@ -173,25 +178,26 @@ class Laplace(EdgeDetector):
     This requires every 1d pooling to return a tensor of exactly the
     same shape, so we recommend ``same=True``.
     """
-    def __init__(self):
-        super().__init__(edge_kernel=(1, -2, 1), smooth_kernel=(), normalize=False)
+    def __init__(self, padder=Padder(mode="reflect"), *, separable_pad=False):
+        super().__init__(edge_kernel=(1, -2, 1), smooth_kernel=(), normalize=False,
+                         padder=padder, separable_pad=separable_pad)
 
     def forward(self, x, mode="magnitude", *, edge_axis=-1, smooth_axes=-2, axes=None,
-                same=True, padder: Padder = Padder(mode="reflect"),
                 epsilon=0.0, p=1):
-        return super().forward(x=x, mode=mode, edge_axis=edge_axis, smooth_axes=smooth_axes, axes=axes,
-                               same=same, padder=padder, epsilon=epsilon, p=p)
+        return super(Laplace, self).forward(x=x, mode=mode, edge_axis=edge_axis, smooth_axes=smooth_axes,
+                                            axes=axes, epsilon=epsilon, p=p)
 
 
-class LaplacianOfGaussian(nn.Module):
+class LaplacianOfGaussian:  # (nn.Module):
     """
     The same as scipy.ndimage.gaussian_laplace
     """
-    def __init__(self, kernel_size, sigma):
+    def __init__(self, kernel_size, sigma, padder: Padder = Padder(mode="reflect"), *, separable_pad=False):
         super().__init__()
         self.kernel_size = kernel_size
         self.sigma = sigma
+        self.gg = GaussianGrad(kernel_size=self.kernel_size, sigma=self.sigma, edge_order=2,
+                               padder=padder, separable_pad=separable_pad)
 
-    def forward(self, x: torch.Tensor, axes=None, *, same=True, padder=Padder(mode="reflect")):
-        gg = GaussianGrad(kernel_size=self.kernel_size, sigma=self.sigma, edge_order=2)
-        return gg.magnitude(x, axes=axes, same=same, padder=padder, epsilon=0.0, p=1)
+    def forward(self, x: torch.Tensor, axes=None):
+        return self.gg.magnitude(x, axes=axes, epsilon=0.0, p=1)

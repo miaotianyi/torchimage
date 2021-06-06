@@ -35,6 +35,9 @@ def check_axes(x, axes):
 
 
 def check_stride(stride):
+    if stride is None:
+        return stride
+
     try:
         stride = int(stride)
     except TypeError:

@@ -5,6 +5,21 @@ import torch
 import numpy as np
 import pywt
 from torchimage.padding.generic_pad import Padder, _stat_padding_set
+from torchimage.padding.utils import same_padding_width
+
+
+def scipy_same_padding_width(kernel_size):
+    if kernel_size <= 1:
+        return 0, 0
+
+    pad_beg = kernel_size // 2
+    if kernel_size % 2 == 1:  # odd kernel size, most common
+        pad_end = pad_beg
+    else:
+        # this is somewhat arbitrary: padding less at the end
+        # follow the same convention as scipy.ndimage
+        pad_end = pad_beg - 1
+    return pad_beg, pad_end
 
 
 class MyTestCase(unittest.TestCase):
@@ -17,6 +32,11 @@ class MyTestCase(unittest.TestCase):
             tol = self.tol
         lib = torch if (torch.is_tensor(a) and torch.is_tensor(b)) else np
         self.assertLess(lib.abs(a - b).sum(), tol, msg=f"{a} is not equal to {b}, {msg}")
+
+    def test_padding_width(self):
+        for i in range(16):
+            with self.subTest(kernel_size=i):
+                self.assertEqual(same_padding_width(i), scipy_same_padding_width(i))
 
     def test_const_padding(self):
         mode = "constant"

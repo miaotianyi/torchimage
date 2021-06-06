@@ -104,13 +104,16 @@ def same_padding_width(kernel_size, stride=1, in_size=None):
     else:
         if in_size is None:
             raise ValueError(f"when stride={stride} instead of 1, in_size is required for same padding width")
+        if stride is None:
+            stride = kernel_size
         # expected output tensor size at axis with same padding
         out_size = ceil(in_size / stride)  # in_size == outsize with stride=1
         pad_total = (out_size - 1) * stride + kernel_size - in_size
 
     pad_total = max(pad_total, 0)
-    pad_before = pad_total // 2
-    pad_after = pad_total - pad_before
+    pad_after = pad_total // 2  # we follow scipy's same-padding convention
+    # pad_after is smaller if it's different from pad_before
+    pad_before = pad_total - pad_after
     return pad_before, pad_after
 
 

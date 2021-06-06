@@ -4,8 +4,8 @@ from torch import nn
 
 from torchimage.utils import NdSpec
 from . import pad_1d
-from .utils import modify_idx, make_idx
-from ..utils.validation import check_axes
+from .utils import modify_idx, make_idx, same_padding_width
+from ..utils.validation import check_axes, check_pad_width
 
 _padding_function_dict = {
     "replicate": pad_1d.replicate_1d,
@@ -38,7 +38,7 @@ class Padder(nn.Module):
         """
         Parameters
         ----------
-        pad_width : int, pair of int, list of pair of int
+        pad_width : int, pair of int, list of pair of int, NdSpec
             Padding width specification.
 
             If it's a single integer ``width``, all axes of interest
@@ -54,17 +54,17 @@ class Padder(nn.Module):
             right-justified, left-to-right, and nested NdSpec format:
             ``[..., (before_{-2}, after_{-2}), (before_{-1}, after_{-1})]``
 
-        mode : str, <function>, list of str or <function>
+        mode : str, <function>, list of str or <function>, NdSpec
             Padding mode or padding function.
 
-        constant_values : float, pair of float, list of pair of float
+        constant_values : float, pair of float, list of pair of float, NdSpec
             Constant value for padding if mode is ``constant``.
 
-        end_values : float, pair of float, list of pair of float
+        end_values : float, pair of float, list of pair of float, NdSpec
             Used in ``linear_ramp``. The values used for the ending value of the linear ramp
             and that will form the edge of the padded array. Default: 0
 
-        stat_length : None, int, pair of int, list of pair of int
+        stat_length : None, int, pair of int, list of pair of int, NdSpec
             Used in "maximum", "mean", "median", and "minimum".
             Number of values at edge of each axis used to calculate the statistic value.
             Default: None.
@@ -77,12 +77,7 @@ class Padder(nn.Module):
         """
         super(Padder, self).__init__()
 
-        self.pad_width = NdSpec(pad_width, item_shape=[2])
-
-        def _check_pad_width(pw):
-            assert pw[0] >= 0 <= pw[1]
-
-        self.pad_width.map(_check_pad_width)
+        self.pad_width = NdSpec(pad_width, item_shape=[2]).starmap(check_pad_width)
 
         self.mode = NdSpec(mode)
         self.mode.map(_check_padding_mode)
@@ -91,11 +86,53 @@ class Padder(nn.Module):
         self.end_values = NdSpec(end_values, item_shape=[2])
         self.stat_length = NdSpec(stat_length, item_shape=[2])
 
-        # input values should be broadcastable (item or same-length list of items)
-        # otherwise raises an error
+        self.ndim = None
+        self._align_params()
+
+    def _align_params(self):
+        """
+        Verify that the parameters such as pad_width,
+        mode, constant_values, etc. can be aligned
+        (they either have length 0/broadcastable or
+        the same nonzero length).
+
+        Otherwise, an error will be raised
+        """
         index_shape = NdSpec.agg_index_shape(self.pad_width, self.mode,
                                              self.constant_values, self.end_values, self.stat_length)
+        assert len(index_shape) <= 1
         self.ndim = index_shape[0] if index_shape else 0
+
+    def to_same(self, kernel_size, stride=1, in_shape=None):
+        """
+        Modify this padder in-place, such that
+        the padding width follows the convention of same
+        padding.
+
+        Parameters
+        ----------
+        kernel_size : int or sequence of int
+            Kernel size of convolution operation
+
+        stride : int or sequence of int
+            Stride of convolution at each axis
+
+        in_shape : int or sequence of int
+            Size of input tensor at each axis of interest
+
+        Returns
+        -------
+        new_padder : Padder
+            self with pad_width re-initialized
+
+        """
+        new_pad_width = NdSpec.apply(
+            same_padding_width,
+            NdSpec(kernel_size), NdSpec(stride), NdSpec(in_shape)
+        )
+        self.pad_width = new_pad_width
+        self._align_params()
+        return self
 
     def _fill_value_1d(self, y: torch.Tensor, i: int, axis: int, idx):
         """
@@ -197,7 +234,7 @@ class Padder(nn.Module):
         if not axes:
             return x
 
-        ndim_padded = min(x.ndim, len(axes))
+        ndim_padded = len(axes)
         if self.ndim > 0:
             ndim_padded = min(ndim_padded, self.ndim)
 

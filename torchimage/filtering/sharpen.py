@@ -29,8 +29,8 @@ class UnsharpMask(nn.Module):
 
         self.filter_layer = filter_layer
         # examples:
-        # pool_to_filter(GaussianPoolNd)(kernel_size=7, sigma=1.5)
-        # pool_to_filter(AveragePoolNd)(kernel_size=5)
+        # GaussianPoolNd(kernel_size=7, sigma=1.5).to_filter()
+        # AveragePoolNd(kernel_size=5).to_filter()
         self.amount = amount
         self.threshold = threshold
 
