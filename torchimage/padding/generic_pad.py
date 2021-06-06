@@ -244,6 +244,9 @@ class Padder(nn.Module):
 
         for i in range(-ndim_padded, 0):
             pw = self.pad_width[i]
+            if pw[0] == pw[1] == 0:
+                continue
+
             a = axes[i]
             head_vec[a] += pw[0]
             pad_after_vec[a] += pw[1]
@@ -266,14 +269,33 @@ class Padder(nn.Module):
 
         return y
 
-    def pad_axis(self, x: torch.Tensor, axis: int):  # pad a specific axis
+    def pad_axis(self, x: torch.Tensor, i: int, axis: int):  # pad a specific axis
         """
         Pad a specific axis according to predefined padder parameters
+
+        This method will create a new tensor that is larger at the axis
+        of interest (unless padding width is 0, in which case the original
+        tensor will be returned).
+
+        It is only useful together with separable filtering
+        and in very specific circumstances.
+        The padder pads each axis right before the separable filtering
+        (unfold -> matrix-vector multiplication) at that axis.
+        This algorithm leads to the creation of many more intermediate
+        tensors, which not only takes time copying but also consumes
+        memory if the input tensor requires gradient.
+
+        Therefore, it is only useful when the dimension is extremely
+        high and padding width is much larger than the size of the
+        input tensor.
 
         Parameters
         ----------
         x : torch.Tensor
             Input tensor to be padded.
+
+        i : int
+            The index of self (padder) to be used
 
         axis : int
             The axis in x to be padded. Can be a positive or negative index.
@@ -283,10 +305,11 @@ class Padder(nn.Module):
         y : torch.Tensor
             Padded tensor.
         """
-        assert -x.ndim <= axis < x.ndim  # is valid index
-        axis = axis if axis < 0 else axis - x.ndim  # right-justify with negative index
+        axis = check_axes(x, axis)
+        assert len(axis) == 1
+        axis = axis[0]
 
-        pw = self.pad_width[axis]
+        pw = self.pad_width[i]
         if pw[0] == pw[1] == 0:  # no padding required
             return x
 
@@ -301,6 +324,6 @@ class Padder(nn.Module):
 
         y = torch.empty(tuple(new_shape_vec), dtype=x.dtype, device=x.device)
         y[idx] = x
-        self._fill_value_1d(y, i=axis, axis=axis, idx=idx)
+        self._fill_value_1d(y, i=i, axis=axis, idx=idx)
         return y
 

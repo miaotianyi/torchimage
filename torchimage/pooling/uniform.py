@@ -13,11 +13,9 @@ class AveragePoolNd(SeparablePoolNd):
     def _get_kernel(kernel_size):
         return NdSpec(kernel_size).map(lambda ks: (np.ones(ks) / ks).tolist())
 
-    def __init__(self, kernel_size, stride=None, padder=None, *, same=False, separable_pad=False):
+    def __init__(self, kernel_size, stride=None, *, same_padder=None):
         super().__init__(
             kernel=AveragePoolNd._get_kernel(kernel_size=kernel_size),
             stride=stride,
-            padder=padder,
-            same=same,
-            separable_pad=separable_pad
+            same_padder=same_padder
         )

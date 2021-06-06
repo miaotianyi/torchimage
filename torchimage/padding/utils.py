@@ -14,7 +14,7 @@ def make_idx(*args, dim, ndim):
 
     Parameters
     ----------
-    *args : tuple of int or None
+    *args : int or None
         constructor arguments for the slice object at target axis
 
     dim : int

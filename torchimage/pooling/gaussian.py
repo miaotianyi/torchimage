@@ -81,7 +81,7 @@ class GaussianPoolNd(SeparablePoolNd):
         kernel_params = NdSpec.zip(NdSpec(kernel_size), NdSpec(sigma), NdSpec(order))
         return kernel_params.starmap(lambda ks, s, o: gaussian_kernel_1d(kernel_size=ks, sigma=s, order=o))
 
-    def __init__(self, kernel_size, sigma, order=0, stride=None, padder=None, *, same=False, separable_pad=False):
+    def __init__(self, kernel_size, sigma, order=0, stride=None, *, same_padder=None):
         """
         Parameters
         ----------
@@ -96,9 +96,7 @@ class GaussianPoolNd(SeparablePoolNd):
         super(GaussianPoolNd, self).__init__(
             kernel=GaussianPoolNd._get_kernel(kernel_size=kernel_size, sigma=sigma, order=order),
             stride=stride,
-            padder=padder,
-            same=same,
-            separable_pad=separable_pad
+            same_padder=same_padder
         )
 
 
