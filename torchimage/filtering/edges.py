@@ -15,7 +15,7 @@ Take sobel as example, [-1, 0, 1] are multiplied exactly as stated, whereas they
 MATLAB filtering module
 The end goal of torchimage is to replace MatLab's image processing toolbox
 
-Comparison: skimage, scipy, MatLab, Kornia
+Comparison: skimage, scipy, MatLab, Kornia, OpenCV, gimp
 
 """
 import numpy as np
