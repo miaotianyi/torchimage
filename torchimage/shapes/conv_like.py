@@ -56,8 +56,4 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
     """
     pad_before, pad_after = pad_width
     out_size = conv_1d(in_size=in_size+pad_before+pad_after, kernel_size=kernel_size, stride=stride, dilation=1)
-    raise NotImplementedError
-
-
-
 
