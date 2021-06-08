@@ -195,6 +195,14 @@ class NdSpec:
         return self.shape[:self.index_pos]
 
     @property
+    def item_ndim(self):
+        return len(self.shape) - self.index_pos
+
+    @property
+    def index_ndim(self):
+        return self.index_pos
+
+    @property
     def is_item(self):
         return self.index_pos == 0
 
@@ -291,7 +299,7 @@ class NdSpec:
         return NdSpec.apply(lambda *a: tuple(a), *args)
 
     @staticmethod
-    def agg_index_shape(*args):
+    def agg_index_shape(*args) -> tuple:
         """
         Get the aggregate index shape of input NdSpecs.
 
@@ -335,6 +343,41 @@ class NdSpec:
             return next(iter(index_shape_set))  # 2 shapes, 1 trivial
         else:
             raise ValueError(f"Input NdSpecs cannot broadcast: {args} have different index shapes {index_shape_set}")
+
+    @staticmethod
+    def agg_index_len(*args, allowed_index_ndim=None):
+        """
+        Get the aggregate length (as in __len__) of input NdSpecs.
+
+        This method calls agg_index_shape to verify that the input
+        NdSpecs can indeed be aggregated.
+
+        Parameters
+        ----------
+        args : NdSpec
+            Input NdSpec objects
+
+        allowed_index_ndim : tuple of int
+            Permitted index ndim values. If None, all is permitted.
+
+            For example, kernel_size in convolution is either an item
+            (broadcastable, same for every axis) or a list of items
+            (for each axis of the tensor), so its index_ndim must
+            be either 0 or 1. In this case we recommend using (0, 1).
+
+        Returns
+        -------
+        length : int
+            Aggregate length of input NdSpecs
+        """
+        if allowed_index_ndim is not None:
+            allowed_index_ndim = set(allowed_index_ndim)
+            assert all(a.index_ndim in allowed_index_ndim for a in args)
+        index_shape = NdSpec.agg_index_shape(*args)
+        if index_shape == ():
+            return 0
+        else:
+            return index_shape[0]
 
     @staticmethod
     def apply(func, *args):

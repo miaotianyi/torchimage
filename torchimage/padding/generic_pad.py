@@ -33,7 +33,7 @@ def _check_padding_mode(mode):
         .union(_other_padding_set).union(_padding_function_dict.keys())
 
 
-class Padder(nn.Module):
+class Padder:  # (nn.Module):
     def __init__(self, pad_width=0, mode="constant", constant_values=0, end_values=0.0, stat_length=None):
         """
         Parameters
@@ -86,22 +86,12 @@ class Padder(nn.Module):
         self.end_values = NdSpec(end_values, item_shape=[2])
         self.stat_length = NdSpec(stat_length, item_shape=[2])
 
-        self.ndim = None
         self._align_params()
 
     def _align_params(self):
-        """
-        Verify that the parameters such as pad_width,
-        mode, constant_values, etc. can be aligned
-        (they either have length 0/broadcastable or
-        the same nonzero length).
-
-        Otherwise, an error will be raised
-        """
-        index_shape = NdSpec.agg_index_shape(self.pad_width, self.mode,
-                                             self.constant_values, self.end_values, self.stat_length)
-        assert len(index_shape) <= 1
-        self.ndim = index_shape[0] if index_shape else 0
+        self.ndim = NdSpec.agg_index_len(
+            self.pad_width, self.mode, self.constant_values, self.end_values, self.stat_length,
+            allowed_index_ndim=(0, 1))
 
     def to_same(self, kernel_size, stride=1, in_shape=None):
         """
@@ -200,7 +190,7 @@ class Padder(nn.Module):
         idx = modify_idx(new_head, new_tail, idx=idx, dim=axis)
         return idx
 
-    def forward(self, x: torch.Tensor, axes=None):
+    def forward(self, x: torch.Tensor, axes=slice(2, None)):
         """
         Pads a tensor sequentially at all specified dimensions
 
