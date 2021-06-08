@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import torch
 
@@ -33,6 +35,10 @@ class AvgPoolNd(BasePoolNd):
         self.stride = self.read_stride(stride)
 
         self.count_include_pad = count_include_pad
+        if not count_include_pad:
+            warnings.warn("count_include_pad=False is not properly implemented and can be extremely slow")
+
+
 
         self._align_params()
 
