@@ -1,3 +1,5 @@
+from math import floor, ceil
+
 from ..utils import NdSpec
 
 
@@ -38,7 +40,13 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
 
     For example, with ``in_size=3, pad_width=(2, 1), kernel_size=3, stride=1``,
     the input array ``[**|aaa|*]`` will give a result of
-    [1, 2, 3, 2]
+    [1, 2, 3, 2].
+
+    This function is useful for average pooling, especially the
+    count_include_pad keyword argument. Specifically, average filtering
+    differs from other pre-defined convolution operators in its unique
+    interpretation: the divisor of
+
 
     Parameters
     ----------
@@ -56,4 +64,40 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
     """
     pad_before, pad_after = pad_width
     out_size = conv_1d(in_size=in_size+pad_before+pad_after, kernel_size=kernel_size, stride=stride, dilation=1)
+    ret = []
+
+    #
+    if pad_before > kernel_size:
+        q, r = divmod(pad_before - kernel_size, stride)
+        # zeros_before = (pad_before - kernel_size) // stride + 1
+        # ret += [0] * zeros_before
+        ret += [0] * (q + 1)
+        # diff = zeros_before * stride + kernel_size - pad_before
+        # diff = ((pad_before - kernel_size) // stride) * stride - (pad_before - kernel_size) + stride
+        # diff = stride - r
+        pad_before = kernel_size - (stride - r)
+
+    print(f"{pad_before=}")
+    for i in range((pad_before + in_size - kernel_size) // stride + 1):
+        ret += [min(kernel_size + i * stride - pad_before, kernel_size)]
+        in_size -= stride
+        pad_before = 0
+    # else:
+    #     diff = stride - pad_before
+
+    # ret += list(range(diff, kernel_size, stride)[:])
+
+    # q, r = divmod(pad_before - kernel_size, stride)
+    # zeros_before = max(q + 1, 0)
+    # zeros_before = (pad_before - kernel_size) // stride + 1
+    # ret += [0] * zeros_before
+    # print(stride)
+    # print(kernel_size)
+    # print(zeros_before)
+    # print(stride * zeros_before + kernel_size)
+
+
+    # ret += list(range(r, kernel_size, stride))
+    ret += [''] * (out_size - len(ret))
+    return ret
 

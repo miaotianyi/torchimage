@@ -9,21 +9,33 @@ from torchimage.shapes.conv_like import n_original_elements_1d
 
 
 class MyTestCase(unittest.TestCase):
+    @staticmethod
+    def n_orignal_elements_gt(in_size, pad_width, kernel_size, stride):
+        x = torch.ones(in_size, dtype=torch.int32)
+        padder = Padder(pad_width=pad_width, mode="constant", constant_values=0)
+        x = padder.forward(x, axes=None)
+        print(x.tolist())
+        return x.unfold(0, size=kernel_size, step=stride).sum(dim=-1).tolist()
+
+    def test_n_original_elements_1d_0(self):
+        expected = self.n_orignal_elements_gt(in_size=10, pad_width=(9, 6), kernel_size=4, stride=2)
+        print(expected)
+
     def test_n_original_elements_1d(self):
-        in_size = np.random.randint(1, 20)
-        pad_before, pad_after = np.random.randint(0, 10, size=2)
+        in_size = np.random.randint(1, 10)
+        pad_width = np.random.randint(0, 10, size=2).tolist()
         kernel_size = np.random.randint(1, 7)
         stride = np.random.randint(1, 4)
 
-        with self.subTest(in_size=in_size, pad_before=pad_before, pad_after=pad_after, kernel_size=kernel_size, stride=stride):
-            # set up expected
-            x = torch.ones(in_size)
-            padder = Padder(pad_width=(pad_before, pad_after), mode="constant", constant_values=0)
-            x = padder.forward(x, axes=None)
+        # in_size, pad_width, kernel_size, stride = 19, [0, 8], 3, 1
+        # in_size=3; pad_width=[1, 6]; kernel_size=6; stride=3
+        # in_size = 6; pad_width = [3, 9]; kernel_size = 2; stride = 1
 
-            expected = x.unfold(0, size=kernel_size, step=stride).sum(dim=-1)
-            actual = n_original_elements_1d(in_size=in_size, pad_width=(pad_before, pad_after), kernel_size=kernel_size, stride=stride)
+        with self.subTest(in_size=in_size, pad_width=pad_width, kernel_size=kernel_size, stride=stride):
+            print(f"{in_size=}; {pad_width=}; {kernel_size=}; {stride=}")
+            expected = self.n_orignal_elements_gt(in_size=in_size, pad_width=pad_width, kernel_size=kernel_size, stride=stride)
             print(expected)
+            actual = n_original_elements_1d(in_size=in_size, pad_width=pad_width, kernel_size=kernel_size, stride=stride)
             print(actual)
 
     def test_n_original_elements_nd(self):
