@@ -36,9 +36,6 @@ class MyTestCase(unittest.TestCase):
                 # print(f"{actual=}")
                 self.assertEqual(expected, actual)
 
-    def test_n_original_elements_1d_repeated(self):
-            self.test_n_original_elements_1d()
-
     def test_n_original_elements_nd(self):
         # average pooling, such that border cases (for instance) has smaller re-normalization weight
         for i in range(10):

@@ -94,6 +94,37 @@ class BasePoolNd:
         stride = NdSpec.apply(lambda s, ks: ks if s is None else s, stride, self.kernel_size)
         return stride
 
+    def to_filter(self, padder: Padder = None):
+        """
+        Modify this pooling module in-place, so that
+        the stride is 1 and a same or valid padder is supplied.
+
+        In torchimage, filtering is a special subset of pooling
+        that has ``stride=1`` and (usually) same padding.
+        (Considering that torch has not implemented a general
+        method to perform dilated unfold on a tensor, dilation=1
+        is the default.)
+
+        Parameters
+        ----------
+        padder : Padder
+            A same padder for this pooling module in the forward
+            stage. A not-None padder will override
+            self.same_padder. So if self.same_padder and padder
+            are both None, valid padding will be used.
+
+        Returns
+        -------
+        self : SeparablePoolNd
+            A modified self
+        """
+        if padder is not None:
+            self.same_padder = padder
+
+        self.stride = NdSpec(1, item_shape=[])
+        self._align_params()
+        return self
+
 
 class SeparablePoolNd(BasePoolNd):  # (nn.Module):
     def __init__(self, kernel=(), stride=None, *, same_padder: Padder = None):
@@ -156,6 +187,7 @@ class SeparablePoolNd(BasePoolNd):  # (nn.Module):
             Output tensor after pooling
         """
         axes = check_axes(x, axes)
+        assert self.ndim == 0 or self.ndim == len(axes)
         # move kernel to corresponding device/dtype
         kernel = self.kernel.map(lambda k: move_tensor(k, dtype=x.dtype, device=x.device))
 
@@ -169,34 +201,4 @@ class SeparablePoolNd(BasePoolNd):  # (nn.Module):
             x = x.unfold(axis, size=self.kernel_size[i], step=self.stride[i]) @ kernel[i]
         return x
 
-    def to_filter(self, padder: Padder = None):
-        """
-        Modify this pooling module in-place, so that
-        the stride is 1 and a same or valid padder is supplied.
-
-        In torchimage, filtering is a special subset of pooling
-        that has ``stride=1`` and (usually) same padding.
-        (Considering that torch has not implemented a general
-        method to perform dilated unfold on a tensor, dilation=1
-        is the default.)
-
-        Parameters
-        ----------
-        padder : Padder
-            A same padder for this pooling module in the forward
-            stage. A not-None padder will override
-            self.same_padder. So if self.same_padder and padder
-            are both None, valid padding will be used.
-
-        Returns
-        -------
-        self : SeparablePoolNd
-            A modified self
-        """
-        if padder is not None:
-            self.same_padder = padder
-
-        self.stride = NdSpec(1, item_shape=[])
-        self._align_params()
-        return self
 
