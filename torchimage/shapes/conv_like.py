@@ -1,4 +1,8 @@
+from functools import reduce
+import torch
+
 from ..utils import NdSpec
+from ..misc import outer
 
 
 def conv_1d(in_size, kernel_size, stride, dilation):
@@ -68,7 +72,7 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
         (instead of padded elements) in the receptive field.
     """
     pad_before, pad_after = pad_width
-    # out_size = conv_1d(in_size=in_size+pad_before+pad_after, kernel_size=kernel_size, stride=stride, dilation=1)
+    out_size = conv_1d(in_size=in_size+pad_before+pad_after, kernel_size=kernel_size, stride=stride, dilation=1)
     ret = []
 
     if kernel_size > pad_before + pad_after + in_size:
@@ -106,4 +110,13 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
         pad_after += in_size
         n_zeros_after = (pad_after - kernel_size) // stride + 1
     ret += [0] * n_zeros_after
-    return ret
+    return ret[:out_size]
+
+
+def n_original_elements_nd(in_size, pad_width, kernel_size, stride, *, device=None, dtype=torch.int32):
+    in_size, pad_width, kernel_size, stride = \
+        NdSpec(in_size), NdSpec(pad_width, item_shape=(2,)), NdSpec(kernel_size), NdSpec(stride)
+    n_original = NdSpec.apply(n_original_elements_1d, in_size, pad_width, kernel_size, stride).map(
+        lambda x: torch.tensor(x, dtype=dtype, device=device)
+    )
+    return reduce(outer, n_original)
