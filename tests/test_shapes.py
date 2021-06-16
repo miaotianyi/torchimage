@@ -5,7 +5,7 @@ import torch
 
 from torchimage.utils import NdSpec
 from torchimage.padding import Padder
-from torchimage.pooling import AveragePoolNd
+from torchimage.pooling import AvgPoolNd
 from torchimage.padding.utils import same_padding_width
 from torchimage.shapes.conv_like import n_original_elements_1d, n_original_elements_nd
 
@@ -49,7 +49,7 @@ class MyTestCase(unittest.TestCase):
                 NdSpec(kernel_size), NdSpec(stride), NdSpec(shape)
             )
 
-            old_layer = AveragePoolNd(kernel_size, stride=stride, same_padder=Padder(mode="constant", constant_values=0))
+            old_layer = AvgPoolNd(kernel_size, stride=stride, same_padder=Padder(mode="constant", constant_values=0), count_include_pad=True)
 
             expected = (old_layer.forward(torch.ones(tuple(shape)), axes=None) * np.prod(kernel_size)).to(dtype=torch.int32)
             actual = n_original_elements_nd(in_size=shape, pad_width=pad_width,
