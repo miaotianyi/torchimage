@@ -79,23 +79,30 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
     n_rising_monotone = (pad_before + in_size - kernel_size) // stride + 1
     n_rising = min(n_rising_monotone, pad_before // stride + 1)
 
-    pad_before += stride
     for i in range(n_rising):
-        pad_before -= stride
         ret.append(kernel_size - pad_before)
+        pad_before -= stride
 
-    ret += [kernel_size] * (n_rising_monotone - n_rising)
+    n_same = max(n_rising_monotone - n_rising, 0)
+    ret += [kernel_size] * n_same
+    pad_before -= stride * n_same
 
-    if kernel_size > pad_before + in_size:
+    while pad_before > 0:
         ret.append(in_size)
-        ones_before = pad_before + in_size - stride
-    else:
-        r = (pad_before + in_size - kernel_size) % stride
-        ones_before = kernel_size - (stride - r)
+        pad_before -= stride
+
+    in_size += pad_before
+
+    # if kernel_size > pad_before + in_size:
+    #     ret.append(in_size)
+    #     ones_before = pad_before + in_size - stride
+    # else:
+    #     r = (pad_before + in_size - kernel_size) % stride
+    #     ones_before = kernel_size - (stride - r)
 
     print(f"{ret=}")
     # final part
-    n_falling_monotone = (ones_before + pad_after - kernel_size) // stride
+    # n_falling_monotone = (ones_before + pad_after - kernel_size) // stride
     # print(f"{n_falling_monotone=}")
     # n_falling = min(n_falling_monotone, ones_before // stride)
     # for i in range(n_falling):

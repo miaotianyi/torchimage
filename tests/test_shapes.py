@@ -25,7 +25,7 @@ class MyTestCase(unittest.TestCase):
         in_size = np.random.randint(1, 7)
         pad_width = np.random.randint(0, 7, size=2).tolist()
         kernel_size = np.random.randint(1, 7)
-        stride = np.random.randint(1, 4)
+        stride = np.random.randint(1, 7)
 
         # in_size, pad_width, kernel_size, stride = 19, [0, 8], 3, 1
         # in_size=3; pad_width=[1, 6]; kernel_size=6; stride=3
@@ -34,6 +34,8 @@ class MyTestCase(unittest.TestCase):
         # in_size = 1; pad_width = [4, 6]; kernel_size = 1; stride = 3
         # in_size=1; pad_width=[5, 2]; kernel_size=2; stride=3
         # in_size=3; pad_width=[1, 4]; kernel_size=6; stride=1
+        # in_size=4; pad_width=[1, 2]; kernel_size=5; stride=1
+        # in_size=6; pad_width=[5, 6]; kernel_size=2; stride=3
 
         if sum(pad_width) + in_size < kernel_size:
             return
