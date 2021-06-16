@@ -126,7 +126,14 @@ class MyTestCase(unittest.TestCase):
             y_ti = filter_layer.forward(x).squeeze().numpy()
             y_torch = F.avg_pool2d(x, kernel_size=kernel_size, stride=1,
                                    padding=kernel_size//2,  count_include_pad=True).squeeze().numpy()
-            with self.subTest(kernel_size=kernel_size, ti_mode=ti_mode):
+            with self.subTest(kernel_size=kernel_size, ti_mode=ti_mode, count_include_pad=True):
+                self.assertLess(np.abs(y_ti - y_torch).max(), 1e-10)
+
+            filter_layer = AvgPoolNd(kernel_size=kernel_size, count_include_pad=False).to_filter(padder=Padder(mode=ti_mode))
+            y_ti = filter_layer.forward(x).squeeze().numpy()
+            y_torch = F.avg_pool2d(x, kernel_size=kernel_size, stride=1,
+                                   padding=kernel_size // 2, count_include_pad=False).squeeze().numpy()
+            with self.subTest(kernel_size=kernel_size, ti_mode=ti_mode, count_include_pad=False):
                 self.assertLess(np.abs(y_ti - y_torch).max(), 1e-10)
 
 
