@@ -1,5 +1,3 @@
-from math import floor, ceil
-
 from ..utils import NdSpec
 
 
@@ -45,15 +43,19 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
     This function is useful for average pooling, especially the
     count_include_pad keyword argument. Specifically, average filtering
     differs from other pre-defined convolution operators in its unique
-    interpretation: the divisor of
-
+    interpretation. In 1 dimension, with ``[1, 2, 3, 4, 5]`` as input,
+    a kernel with size 3 will result in
+    ``[(1+2)/2, (1+2+3)/3, (2+3+4)/3, (3+4+5)/3, (4+5)/2]``.
+    Note how the definition of arithmetic mean helps achieve
+    equal output and input shapes by adjusting the divisor,
+    without any padding at all.
 
     Parameters
     ----------
     in_size : int
         The original input size (doesn't include padding width)
 
-    pad_width: int
+    pad_width: tuple of int
 
     kernel_size : int
 
@@ -62,10 +64,11 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
     Returns
     -------
     ret : tuple of int
-        Has length out_size
+        Has length out_size. ret[i] counts the number of original elements
+        (instead of padded elements) in the receptive field.
     """
     pad_before, pad_after = pad_width
-    out_size = conv_1d(in_size=in_size+pad_before+pad_after, kernel_size=kernel_size, stride=stride, dilation=1)
+    # out_size = conv_1d(in_size=in_size+pad_before+pad_after, kernel_size=kernel_size, stride=stride, dilation=1)
     ret = []
 
     if kernel_size > pad_before + pad_after + in_size:
@@ -93,26 +96,14 @@ def n_original_elements_1d(in_size, pad_width, kernel_size, stride):
 
     in_size += pad_before
 
-    # if kernel_size > pad_before + in_size:
-    #     ret.append(in_size)
-    #     ones_before = pad_before + in_size - stride
-    # else:
-    #     r = (pad_before + in_size - kernel_size) % stride
-    #     ones_before = kernel_size - (stride - r)
+    if in_size < 0:
+        n_zeros_after = (in_size + pad_after - kernel_size) // stride + 1
+    else:
+        for s in range(min(in_size, kernel_size), 0, -stride):
+            in_size -= stride
+            ret.append(s)
 
-    print(f"{ret=}")
-    # final part
-    # n_falling_monotone = (ones_before + pad_after - kernel_size) // stride
-    # print(f"{n_falling_monotone=}")
-    # n_falling = min(n_falling_monotone, ones_before // stride)
-    # for i in range(n_falling):
-    #     ret.append(min(ones_before, in_size))
-    #     ones_before -= stride
-
-    #
-    # ret += [0] * (n_falling_monotone - n_falling)
-    #
-
-    ret += [''] * (out_size - len(ret))
+        pad_after += in_size
+        n_zeros_after = (pad_after - kernel_size) // stride + 1
+    ret += [0] * n_zeros_after
     return ret
-

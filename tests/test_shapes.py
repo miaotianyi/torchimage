@@ -14,12 +14,7 @@ class MyTestCase(unittest.TestCase):
         x = torch.ones(in_size, dtype=torch.int32)
         padder = Padder(pad_width=pad_width, mode="constant", constant_values=0)
         x = padder.forward(x, axes=None)
-        print(x.tolist())
         return x.unfold(0, size=kernel_size, step=stride).sum(dim=-1).tolist()
-
-    def test_n_original_elements_1d_0(self):
-        expected = self.n_orignal_elements_gt(in_size=10, pad_width=(9, 6), kernel_size=4, stride=2)
-        print(expected)
 
     def test_n_original_elements_1d(self):
         in_size = np.random.randint(1, 7)
@@ -27,29 +22,19 @@ class MyTestCase(unittest.TestCase):
         kernel_size = np.random.randint(1, 7)
         stride = np.random.randint(1, 7)
 
-        # in_size, pad_width, kernel_size, stride = 19, [0, 8], 3, 1
-        # in_size=3; pad_width=[1, 6]; kernel_size=6; stride=3
-        # in_size = 6; pad_width = [3, 9]; kernel_size = 2; stride = 1
-        # in_size = 2; pad_width = [1, 1]; kernel_size = 5; stride=1
-        # in_size = 1; pad_width = [4, 6]; kernel_size = 1; stride = 3
-        # in_size=1; pad_width=[5, 2]; kernel_size=2; stride=3
-        # in_size=3; pad_width=[1, 4]; kernel_size=6; stride=1
-        # in_size=4; pad_width=[1, 2]; kernel_size=5; stride=1
-        # in_size=6; pad_width=[5, 6]; kernel_size=2; stride=3
-
         if sum(pad_width) + in_size < kernel_size:
             return
 
         with self.subTest(in_size=in_size, pad_width=pad_width, kernel_size=kernel_size, stride=stride):
-            print(f"{in_size=}; {pad_width=}; {kernel_size=}; {stride=}")
+            # print(f"{in_size=}; {pad_width=}; {kernel_size=}; {stride=}")
             expected = self.n_orignal_elements_gt(in_size=in_size, pad_width=pad_width, kernel_size=kernel_size, stride=stride)
-            print(f"{expected=}")
+            # print(f"{expected=}")
             actual = n_original_elements_1d(in_size=in_size, pad_width=pad_width, kernel_size=kernel_size, stride=stride)
-            print(f"{actual=}")
+            # print(f"{actual=}")
             self.assertEqual(expected, [a if a != '' else e for a, e in zip(actual, expected)])
 
     def test_n_original_elements_1d_repeated(self):
-        for i in range(100):
+        for i in range(20):
             self.test_n_original_elements_1d()
 
     def test_n_original_elements_nd(self):
