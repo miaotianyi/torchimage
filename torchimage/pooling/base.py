@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 import torch
 from torch import nn
 from ..padding.generic_pad import Padder
@@ -15,6 +17,10 @@ class BasePoolNd:
     kernel_size: NdSpec
 
     stride: NdSpec
+
+    @abstractmethod
+    def _align_params(self):
+        pass
 
     def __init__(self, *, same_padder: Padder = None):
         """
