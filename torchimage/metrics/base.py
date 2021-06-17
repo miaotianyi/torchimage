@@ -18,6 +18,11 @@ class BaseMetric:
     depth, height, and width. They will be averaged in the final output.
     If axes is None, all axes will be averaged.
 
+    In SSIM, ``axes`` has special meaning that the averaging kernel
+    will be convolved on those axes only (doesn't include batch
+    or channel dimensions).
+
+
     Compatible with PyTorch, aggregation modes include ``'mean'``, ``'sum'``, and
     ``'none'`` (do not change full output at all).
     """
