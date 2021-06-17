@@ -22,6 +22,10 @@ class BasePoolNd:
     def _align_params(self):
         pass
 
+    @abstractmethod
+    def forward(self, x: torch.Tensor, axes):
+        pass
+
     def __init__(self, *, same_padder: Padder = None):
         """
         Parameters
