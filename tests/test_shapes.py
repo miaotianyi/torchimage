@@ -51,10 +51,11 @@ class MyTestCase(unittest.TestCase):
 
             old_layer = AvgPoolNd(kernel_size, stride=stride, same_padder=Padder(mode="constant", constant_values=0), count_include_pad=True)
 
-            expected = (old_layer.forward(torch.ones(tuple(shape)), axes=None) * np.prod(kernel_size)).to(dtype=torch.int32)
+            expected = torch.round(old_layer.forward(torch.ones(tuple(shape)), axes=None) * np.prod(kernel_size)).to(dtype=torch.int32)
             actual = n_original_elements_nd(in_size=shape, pad_width=pad_width,
                                             kernel_size=kernel_size, stride=stride)
-            self.assertTrue(torch.equal(actual, expected))
+            with self.subTest(i=i):
+                self.assertTrue(torch.equal(actual, expected))
 
 
 if __name__ == '__main__':
