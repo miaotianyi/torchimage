@@ -1,24 +1,18 @@
 import torch
-from .mse import mse
+import numpy as np
+
+from .mse import MSE
 
 
-def psnr(image_true, image_test, data_range=1):
-    """
-    Peak signal-to-noise ratio
+class PSNR(MSE):
+    def __init__(self, max_value=1, eps=0.0, *, reduction='mean'):
+        super().__init__(reduction=reduction)
+        self.max_value = max_value  # input must be in range [0, max_value]
+        # prevent nan gradient in log10
+        self.eps = eps
 
-    Parameters
-    ----------
-    image_true
-    image_test
-    data_range
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=None):
+        mse_score = super().forward(y_pred=y_pred, y_true=y_true, axes=axes)
+        log_mse = torch.log10(mse_score + self.eps if self.eps > 0 else mse_score)
+        return 20 * np.log10(self.max_value) - 10 * log_mse
 
-    Returns
-    -------
-
-    """
-    # input image must be 3D (c, h, w) or (n, c, h, w)
-    # the last 3 dimensions will be reduced
-    score = 20 * torch.log10(data_range / torch.sqrt(
-        mse(image_true, image_test)
-    ))
-    return score
