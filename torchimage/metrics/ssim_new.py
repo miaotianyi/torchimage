@@ -7,14 +7,12 @@ from ..padding import Padder
 from ..pooling import BasePoolNd, AvgPoolNd, GaussianPoolNd
 
 
-class SSIM(BaseMetric):
+class SSIM:
     def __init__(self, blur: BasePoolNd = "gaussian",
                  padder: Padder = Padder(mode="replicate"),
                  K1=0.01, K2=0.03,
                  use_sample_covariance=True, crop_border=True,
                  reduction="mean"):
-        super().__init__(reduction=reduction)
-
         if blur == "gaussian":
             self.blur = GaussianPoolNd(kernel_size=11, sigma=1.5).to_filter(padder)
         elif blur == "mean":
@@ -89,10 +87,19 @@ class SSIM(BaseMetric):
             idx[i] = slice(pad_before, full.shape[a]-pad_after)
         return full[tuple(idx)]
 
-    def forward_full(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes):
-        ssim_full = self._ssim_full(y1=y_pred, y2=y_true, axes=axes)
-        ssim_full = self._crop_border(ssim_full, axes=axes)
-        return ssim_full
+    def forward_score(self, x: torch.Tensor, axes: tuple):
+        return self._crop_border(x, axes=axes).mean(dim=axes)
+
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=slice(2, None), channel_axes=(1,)):
+        assert y_pred.shape == y_true.shape
+
+        axes = check_axes(y_pred, axes)
+        channel_axes = check_axes(y_pred, channel_axes)
+        avg_axes = channel_axes + axes
+
+        full = self._ssim_full(y1=y_pred, y2=y_true, axes=axes)
+        score = self.forward_score(full, axes=avg_axes)
+        return score, full
 
 
 class MultiSSIM(SSIM):
@@ -108,7 +115,7 @@ class MultiSSIM(SSIM):
 
         # multiscale-specific settings
         if weights is None:
-            self.weights = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
+            self.weights = (0.0448, 0.2856, 0.3001, 0.2363, 0.1333)
         else:
             self.weights = weights
 
@@ -130,38 +137,60 @@ class MultiSSIM(SSIM):
         # only calculates c * s (out of l, c, s in SSIM)
         return (2 * sigma12 + C2) / (sigma1_sq + sigma2_sq + C2)
 
-    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=None):
+    def _check_shape_large_enough(self, x: torch.Tensor, axes: tuple):
+        factor = (2 ** (self.n_levels - 1))
+
+        for i, a in enumerate(axes):
+            assert x.shape[a] / factor > self.blur.kernel_size[i]
+
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=slice(2, None), channel_axes=(1, )):
+        # before score computation, channel axes will be averaged first
+        # so the final axes are just the sample dimensions
+
+        # data validation
         assert y_pred.shape == y_true.shape
 
+        # axes
         axes = check_axes(y_pred, axes)
+        channel_axes = check_axes(y_pred, channel_axes)
+        avg_axes = channel_axes + axes
 
-        overall_mssim = 1 if self.use_prod else 0  # product vs sum
+        # content axes are large enough
+        self._check_shape_large_enough(y_pred, axes=axes)
+
+        final_score = None
 
         y1, y2 = y_pred, y_true
 
         for i in range(self.n_levels - 1):  # only last layer uses full l*c*s
             cs_full = self._cs_full(y1=y1, y2=y2, axes=axes)  # n, c, d, h, w
+            cs_full = self._crop_border(cs_full, axes=axes)
+            cs_score = cs_full.mean(dim=avg_axes, keepdim=False)
 
-            # axes is d, h, w
-            mcs = _map_mean(cs_map, keep_channels, crop_edge, window_size)  # mean cs of shape [n,] or [n, c]
-
-            if self.use_prod:
-                overall_mssim = overall_mssim * mcs ** self.weights[i]
+            if final_score is None:
+                if self.use_prod:
+                    final_score = cs_score ** self.weights[i]
+                else:
+                    final_score = cs_score * self.weights[i]
             else:
-                overall_mssim = overall_mssim + mcs * self.weights[i]
+                if self.use_prod:
+                    final_score *= cs_score ** self.weights[i]
+                else:
+                    final_score += cs_score * self.weights[i]
 
             y1 = self._downsample(y1, axes=axes)
             y2 = self._downsample(y2, axes=axes)
 
-        ssim_map_last = self._ssim_full(y1=y1, y2=y2, axes=axes)
-        mssim_last = _map_mean(ssim_map_last, keep_channels, crop_edge, window_size)
+        ssim_full = self._ssim_full(y1=y1, y2=y2, axes=axes)
+        ssim_full = self._crop_border(ssim_full, axes=axes)
+        ssim_score = ssim_full.mean(dim=avg_axes, keepdim=False)
 
-        if use_prod:
-            overall_mssim = overall_mssim * mssim_last ** weights[-1]
+        if self.use_prod:
+            final_score *= ssim_score ** self.weights[-1]
         else:
-            overall_mssim = overall_mssim + mssim_last * weights[-1]
+            final_score += ssim_score * self.weights[-1]
 
-        return overall_mssim
+        return final_score
 
 
 

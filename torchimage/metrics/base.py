@@ -33,14 +33,7 @@ class BaseMetric:
     def __init__(self, *, reduction="mean"):
         self.reduction = reduction
 
-    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=None):
-        assert y_pred.shape == y_true.shape
-
-        axes = check_axes(y_pred, axes)
-        # don't need to check axes later
-
-        x = self.forward_full(y_pred=y_pred, y_true=y_true, axes=axes)
-
+    def _reduce(self, x: torch.Tensor, axes: tuple):
         if self.reduction == "mean":
             return self._mean(x, axes)
         elif self.reduction == "sum":
@@ -49,6 +42,16 @@ class BaseMetric:
             return x
         else:
             raise ValueError(f"Unknown reduction mode: {self.reduction}")
+
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=None):
+        assert y_pred.shape == y_true.shape
+
+        axes = check_axes(y_pred, axes)
+        # don't need to check axes later
+
+        x = self.forward_full(y_pred=y_pred, y_true=y_true, axes=axes)
+        x = self._reduce(x, axes=axes)
+        return x
 
     @staticmethod
     def _mean(x: torch.Tensor, axes):

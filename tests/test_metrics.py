@@ -44,7 +44,7 @@ class MyTestCase(unittest.TestCase):
 
         actual = PSNR(max_value=1, reduction='mean').forward(y1, y2, axes=None).item()
         expected = peak_signal_noise_ratio(y1.numpy(), y2.numpy(), data_range=1)
-        self.assertEqual(actual, expected)
+        self.assertLess(np.abs(actual - expected), 1e-10)
 
 
 if __name__ == '__main__':
