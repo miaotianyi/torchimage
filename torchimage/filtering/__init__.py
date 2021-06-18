@@ -4,7 +4,8 @@ from .sharpen import UnsharpMask
 from .generic import GenericFilter2d
 
 __all__ = [
-    "EdgeDetector", "Sobel", "Prewitt", "Farid", "Scharr", "GaussianGrad", "LaplacianOfGaussian",
+    "EdgeDetector", "Sobel", "Prewitt", "Farid", "Scharr", "GaussianGrad",
+    "Laplace", "LaplacianOfGaussian",
     "UnsharpMask",
 
     "GenericFilter2d"

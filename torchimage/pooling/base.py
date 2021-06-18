@@ -2,6 +2,8 @@ from abc import abstractmethod
 
 import torch
 from torch import nn
+
+from .operator import any_conv_1d
 from ..padding.generic_pad import Padder
 from ..utils import NdSpec
 from ..utils.validation import check_axes, check_stride
@@ -208,6 +210,7 @@ class SeparablePoolNd(BasePoolNd):  # (nn.Module):
             if self.kernel_size[i] == 0:
                 continue
 
+            # x = any_conv_1d(x, kernel[i], dim=axis, stride=self.stride[i], dilation=1)
             x = x.unfold(axis, size=self.kernel_size[i], step=self.stride[i]) @ kernel[i]
         return x
 

@@ -20,17 +20,16 @@ Comparison: skimage, scipy, MatLab, Kornia, OpenCV, gimp
 """
 import numpy as np
 import torch
-from torch import nn
 
 from ..pooling.gaussian import gaussian_kernel_1d
 from ..pooling.base import SeparablePoolNd
 from ..padding import Padder
 from ..utils import NdSpec
 from ..utils.validation import check_axes
-from ..padding.utils import make_idx, modify_idx
+from ..padding.utils import make_idx
 
 
-class EdgeDetector:  # (nn.Module):
+class EdgeDetector:
     def __init__(self, edge_kernel, smooth_kernel, *, normalize=False, same_padder: Padder = None):
         super(EdgeDetector, self).__init__()
 
@@ -112,6 +111,10 @@ class EdgeDetector:  # (nn.Module):
         for i, edge_axis in enumerate(axes):
             # edge component at edge_axis
             c = self.component(x, edge_axis=edge_axis, smooth_axes=axes[:i]+axes[i+1:])
+
+            if p % 2 == 1:  # odd L^p norm -> need abs
+                c = torch.abs(c)
+
             if magnitude is None:
                 magnitude = c ** p
             else:
