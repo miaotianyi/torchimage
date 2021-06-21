@@ -109,8 +109,6 @@ class MyTestCase(unittest.TestCase):
         truncate = 2
         ks = int(sigma * truncate * 2 + 1)
 
-        from matplotlib import pyplot as plt
-
         for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
             x1 = torch.rand(17, 24, dtype=torch.float64)
             x2 = x1.numpy()

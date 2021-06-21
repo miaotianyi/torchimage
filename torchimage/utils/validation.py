@@ -27,7 +27,7 @@ def check_axes(x, axes):
     elif isinstance(axes, slice):
         axes = tuple(range(x.ndim)[axes])
     elif isinstance(axes, int):
-        return axes,
+        return tuple([axes if axes >= 0 else x.ndim + axes])
     else:
         axes = tuple(int(a) if a >= 0 else x.ndim + int(a) for a in axes)
         assert all(0 <= a <= x.ndim for a in axes)

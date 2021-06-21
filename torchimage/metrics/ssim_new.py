@@ -11,8 +11,7 @@ class SSIM:
     def __init__(self, blur: BasePoolNd = "gaussian",
                  padder: Padder = Padder(mode="replicate"),
                  K1=0.01, K2=0.03,
-                 use_sample_covariance=True, crop_border=True,
-                 reduction="mean"):
+                 use_sample_covariance=True, crop_border=True):
         if blur == "gaussian":
             self.blur = GaussianPoolNd(kernel_size=11, sigma=1.5).to_filter(padder)
         elif blur == "mean":
@@ -57,9 +56,9 @@ class SSIM:
         mu2_sq = mu2.pow(2)
         mu1_mu2 = mu1 * mu2
 
-        sigma1_sq = self.blur.forward(y1 * y1) - mu1_sq
-        sigma2_sq = self.blur.forward(y2 * y2) - mu2_sq
-        sigma12 = self.blur.forward(y1 * y2) - mu1_mu2
+        sigma1_sq = self.blur.forward(y1 * y1, axes=axes) - mu1_sq
+        sigma2_sq = self.blur.forward(y2 * y2, axes=axes) - mu2_sq
+        sigma12 = self.blur.forward(y1 * y2, axes=axes) - mu1_mu2
 
         scaling_factor = self._scale_factor(axes=axes)
         if scaling_factor != 1:
@@ -87,8 +86,8 @@ class SSIM:
             idx[i] = slice(pad_before, full.shape[a]-pad_after)
         return full[tuple(idx)]
 
-    def forward_score(self, x: torch.Tensor, axes: tuple):
-        return self._crop_border(x, axes=axes).mean(dim=axes)
+    def forward_score(self, x: torch.Tensor, content_axes: tuple, avg_axes: tuple):
+        return self._crop_border(x, axes=content_axes).mean(dim=avg_axes)
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=slice(2, None), channel_axes=(1,)):
         assert y_pred.shape == y_true.shape
@@ -98,7 +97,7 @@ class SSIM:
         avg_axes = channel_axes + axes
 
         full = self._ssim_full(y1=y_pred, y2=y_true, axes=axes)
-        score = self.forward_score(full, axes=avg_axes)
+        score = self.forward_score(full, content_axes=axes, avg_axes=avg_axes)
         return score, full
 
 

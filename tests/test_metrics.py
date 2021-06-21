@@ -6,6 +6,9 @@ from torch.nn import MSELoss
 
 from torchimage.metrics.mse import MSE
 from torchimage.metrics.psnr import PSNR
+from torchimage.metrics.ssim_new import SSIM, MultiSSIM
+
+from torchimage.padding import Padder
 
 # from torchimage.metrics import ssim as my_ssim, multiscale_ssim as my_multiscale_ssim, psnr as my_psnr
 # from examples.metrics import ssim, msssim, psnr
@@ -45,6 +48,31 @@ class MyTestCase(unittest.TestCase):
         actual = PSNR(max_value=1, reduction='mean').forward(y1, y2, axes=None).item()
         expected = peak_signal_noise_ratio(y1.numpy(), y2.numpy(), data_range=1)
         self.assertLess(np.abs(actual - expected), 1e-10)
+
+    def test_ssim_1(self):
+        shape = np.random.randint(15, 20, size=np.random.randint(1, 6))
+        # shape = (15, 21)
+        y1, y2 = torch.rand(*shape, dtype=torch.float64), torch.rand(*shape, dtype=torch.float64)
+
+        win_size = 11
+
+        for gaussian_weights, blur in [(True, "gaussian"), (False, "mean")]:
+            for multichannel, channel_axes, content_axes in [(False, (), None), (True, -1, slice(0, -1))]:
+                expected_score, expected_full = structural_similarity(
+                    y1.numpy(), y2.numpy(), win_size=win_size, gradient=False, data_range=1,
+                    multichannel=multichannel, gaussian_weights=gaussian_weights, full=True)
+                actual_score, actual_full = SSIM(
+                    blur=blur, padder=Padder(mode="symmetric"), K1=0.01, K2=0.03,
+                    use_sample_covariance=True, crop_border=True).forward(
+                    y1, y2, axes=content_axes, channel_axes=channel_axes
+                )
+                actual_score = actual_score.item()
+                actual_full = actual_full.numpy()
+                with self.subTest(gaussian_weights=gaussian_weights, multichannel=multichannel):
+                    self.assertLess(np.abs(actual_full - expected_full).max(), 1e-13)
+                    self.assertLess(abs(expected_score - actual_score), 1e-14)
+
+
 
 
 if __name__ == '__main__':
