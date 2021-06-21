@@ -102,6 +102,9 @@ class EdgeDetector:
         return self.component(x, edge_axis=-1, smooth_axes=-2)
 
     def magnitude(self, x, axes=None, *, epsilon=0.0, p=2):
+        # note that p isn't actually an L^p norm as it doesn't require positivity
+        # it skips the absolute value step
+
         axes = check_axes(x, axes)
         if len(axes) < 2:
             raise ValueError(f"Image gradient computation requires at least 2 axes, got {axes} instead")
@@ -112,8 +115,8 @@ class EdgeDetector:
             # edge component at edge_axis
             c = self.component(x, edge_axis=edge_axis, smooth_axes=axes[:i]+axes[i+1:])
 
-            if p % 2 == 1:  # odd L^p norm -> need abs
-                c = torch.abs(c)
+            # if p % 2 == 1:  # odd L^p norm -> need abs
+            #     c = torch.abs(c)
 
             if magnitude is None:
                 magnitude = c ** p
