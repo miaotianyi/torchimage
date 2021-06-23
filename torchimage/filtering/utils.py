@@ -1,3 +1,6 @@
+import warnings
+
+
 def _same_padding_pair(kernel_size):
     """
     Shape of padding required to keep input and output shape the same, with stride=dilation=1
@@ -21,7 +24,10 @@ def _same_padding_pair(kernel_size):
     pad_end : int
         Number of padding at the end of the axis
     """
+    warnings.warn("old same padding pair function. Use _same_padding_width instead", DeprecationWarning)
+
     if kernel_size <= 1:
+        warnings.warn("same padding pair for kernel_size <= 1", DeprecationWarning)
         return 0, 0
 
     pad_beg = kernel_size // 2

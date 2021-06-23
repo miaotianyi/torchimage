@@ -7,7 +7,7 @@ from skimage import filters
 from scipy import ndimage
 
 from torchimage.filtering import edges
-from torchimage.padding import GenericPadNd
+from torchimage.padding import Padder
 
 
 NDIMAGE_PAD_MODES = [("symmetric", "reflect"),
@@ -28,21 +28,21 @@ class MyTestCase(unittest.TestCase):
             x1 = torch.rand(np.random.randint(10, 50), np.random.randint(10, 50), dtype=torch.float64)
             x2 = x1.numpy()
 
-            ti_filter = ti_cls(normalize=True)
+            ti_filter = ti_cls(normalize=True, same_padder=Padder(mode="symmetric"))
 
             # in skimage, vertical edges go from the top to the bottom
             # therefore, it represents a sharp HORIZONTAL change in color
             # so the edge axis should be the horizontal (axis=-1)
-            actual_h = ti_filter.horizontal(x1, same=True, padder=GenericPadNd(mode="symmetric")).numpy()
+            actual_h = ti_filter.horizontal(x1).numpy()
             expected_h = ski_h(x2)
             with self.subTest(shape=x1.shape, detector=ti_cls, task="horizontal"):
                 self.assertLess(np.abs(actual_h - expected_h).max(), 1e-12)
-            actual_v = ti_filter.vertical(x1, same=True, padder=GenericPadNd(mode="symmetric")).numpy()
+            actual_v = ti_filter.vertical(x1).numpy()
             expected_v = ski_v(x2)
             with self.subTest(shape=x1.shape, detector=ti_cls, task="vertical"):
                 self.assertLess(np.abs(actual_v - expected_v).max(), 1e-12)
 
-            actual_mag = ti_filter.magnitude(x1, same=True, padder=GenericPadNd(mode="symmetric"), epsilon=0.0).numpy()
+            actual_mag = ti_filter.magnitude(x1, epsilon=0.0).numpy()
             expected_mag = ski_mag(x2) * np.sqrt(2)
             with self.subTest(shape=x1.shape, detector=ti_cls, task="magnitude"):
                 self.assertLess(np.abs(actual_mag - expected_mag).max(), 1e-12)
@@ -52,14 +52,14 @@ class MyTestCase(unittest.TestCase):
             x1 = torch.rand(np.random.randint(10, 50), np.random.randint(10, 50), dtype=torch.float64)
             x2 = x1.numpy()
 
-            sobel = edges.Sobel(normalize=False)
+            sobel = edges.Sobel(normalize=False, same_padder=Padder(mode=ti_mode))
             y_expected = ndimage.sobel(x2, axis=-1, mode=ndimage_mode)
-            y_actual = sobel.component(x1, -1, -2, same=True, padder=GenericPadNd(mode=ti_mode)).numpy()
+            y_actual = sobel.component(x1, -1, -2).numpy()
             with self.subTest(shape=x1.shape, edge_axis=-1, mode=ti_mode, name="sobel"):
                 self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
 
             y_expected = ndimage.sobel(x2, axis=-2, mode=ndimage_mode)
-            y_actual = sobel.component(x1, -2, -1, same=True, padder=GenericPadNd(mode=ti_mode)).numpy()
+            y_actual = sobel.component(x1, -2, -1).numpy()
             with self.subTest(shape=x1.shape, edge_axis=-2, mode=ti_mode, name="sobel"):
                 self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
 
@@ -68,14 +68,14 @@ class MyTestCase(unittest.TestCase):
             x1 = torch.rand(np.random.randint(10, 50), np.random.randint(10, 50), dtype=torch.float64)
             x2 = x1.numpy()
 
-            prewitt = edges.Prewitt(normalize=False)
+            prewitt = edges.Prewitt(normalize=False, same_padder=Padder(mode=ti_mode))
             y_expected = ndimage.prewitt(x2, axis=-1, mode=ndimage_mode)
-            y_actual = prewitt.component(x1, -1, -2, same=True, padder=GenericPadNd(mode=ti_mode)).numpy()
+            y_actual = prewitt.component(x1, -1, -2).numpy()
             with self.subTest(shape=x1.shape, edge_axis=-1, mode=ti_mode, name="sobel"):
                 self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
 
             y_expected = ndimage.prewitt(x2, axis=-2, mode=ndimage_mode)
-            y_actual = prewitt.component(x1, -2, -1, same=True, padder=GenericPadNd(mode=ti_mode)).numpy()
+            y_actual = prewitt.component(x1, -2, -1).numpy()
             with self.subTest(shape=x1.shape, edge_axis=-2, mode=ti_mode, name="sobel"):
                 self.assertLess(np.abs(y_expected - y_actual).max(), 1e-12)
 
@@ -88,18 +88,18 @@ class MyTestCase(unittest.TestCase):
             x1 = torch.rand(*shape, dtype=torch.float64)
             x2 = x1.numpy()
             expected = ndimage.gaussian_gradient_magnitude(x2, sigma=sigma, mode=ndimage_mode, truncate=truncate)
-            gg = edges.GaussianGrad(sigma=sigma, kernel_size=int(truncate*sigma*2+1))
+            gg = edges.GaussianGrad(sigma=sigma, kernel_size=int(truncate*sigma*2+1), same_padder=Padder(mode=ti_mode))
             # epsilon = 0 for precision
-            actual = gg.magnitude(x1, axes=None, padder=GenericPadNd(mode=ti_mode), epsilon=0.0).numpy()
+            actual = gg.magnitude(x1, axes=None, epsilon=0.0).numpy()
             with self.subTest(mode=ti_mode, shape=shape, sigma=sigma, truncate=truncate):
                 self.assertLess(np.abs(expected - actual).max(), 1e-15)
 
     def test_laplace_2(self):
-        laplace_2 = edges.Laplace()
         for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
+            laplace_2 = edges.Laplace(same_padder=Padder(mode=ti_mode))
             x1 = torch.rand(30, 23, dtype=torch.float64)
             x2 = x1.numpy()
-            y_actual = laplace_2(x1, axes=None, padder=GenericPadNd(mode=ti_mode),).numpy()
+            y_actual = laplace_2.forward(x1, axes=None).numpy()
             y_expected = ndimage.laplace(x2, mode=ndimage_mode)
             with self.subTest(mode=ti_mode):
                 self.assertLess(np.abs(y_actual - y_expected).max(), 1e-15)
@@ -114,8 +114,17 @@ class MyTestCase(unittest.TestCase):
         for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
             x1 = torch.rand(17, 24, dtype=torch.float64)
             x2 = x1.numpy()
-            y_actual = edges.LaplacianOfGaussian(kernel_size=ks, sigma=sigma)(x1, padder=GenericPadNd(mode=ti_mode)).numpy()
+            y_actual = edges.LaplacianOfGaussian(kernel_size=ks, sigma=sigma, same_padder=Padder(mode=ti_mode)).forward(x1).numpy()
             y_expected = ndimage.gaussian_laplace(x2, sigma=sigma, mode=ndimage_mode, truncate=truncate)
+
+            fig, ax = plt.subplots(1, 2)
+            ax[0].imshow(y_expected)
+            ax[0].set_title("expected")
+            ax[1].imshow(y_actual)
+            ax[1].set_title("actual")
+            plt.show()
+
+
             with self.subTest(mode=ti_mode):
                 self.assertLess(np.abs(y_actual - y_expected).max(), 1e-15)
 

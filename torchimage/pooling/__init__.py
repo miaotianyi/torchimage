@@ -10,16 +10,16 @@ so that users can have greater freedom and the code becomes
 easier to maintain.
 """
 
-from .base import SeparablePoolNd
-from .uniform import AveragePoolNd
+from .base import BasePoolNd, SeparablePoolNd
+from .uniform import AvgPoolNd
 from .gaussian import GaussianPoolNd
 
 from .gaussian import GaussianPool
 from .generic import GenericPool2d, MedianPool2d, QuantilePool2d
 
 __all__ = [
-    "SeparablePoolNd",
-    "GaussianPoolNd", "AveragePoolNd",
+    "BasePoolNd", "SeparablePoolNd",
+    "GaussianPoolNd", "AvgPoolNd",
 
     "GaussianPool",
     "GenericPool2d", "MedianPool2d", "QuantilePool2d"

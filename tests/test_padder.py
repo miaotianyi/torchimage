@@ -4,7 +4,22 @@ from itertools import product
 import torch
 import numpy as np
 import pywt
-from torchimage.padding.generic_pad import GenericPadNd, _stat_padding_set
+from torchimage.padding.generic_pad import Padder, _stat_padding_set
+from torchimage.padding.utils import same_padding_width
+
+
+def scipy_same_padding_width(kernel_size):
+    if kernel_size <= 1:
+        return 0, 0
+
+    pad_beg = kernel_size // 2
+    if kernel_size % 2 == 1:  # odd kernel size, most common
+        pad_end = pad_beg
+    else:
+        # this is somewhat arbitrary: padding less at the end
+        # follow the same convention as scipy.ndimage
+        pad_end = pad_beg - 1
+    return pad_beg, pad_end
 
 
 class MyTestCase(unittest.TestCase):
@@ -17,6 +32,11 @@ class MyTestCase(unittest.TestCase):
             tol = self.tol
         lib = torch if (torch.is_tensor(a) and torch.is_tensor(b)) else np
         self.assertLess(lib.abs(a - b).sum(), tol, msg=f"{a} is not equal to {b}, {msg}")
+
+    def test_padding_width(self):
+        for i in range(16):
+            with self.subTest(kernel_size=i):
+                self.assertEqual(same_padding_width(i), scipy_same_padding_width(i))
 
     def test_const_padding(self):
         mode = "constant"
@@ -40,7 +60,7 @@ class MyTestCase(unittest.TestCase):
                                   [constant_values_scalar, constant_values_pair, constant_values_list]):
                 with self.subTest(shape=shape, pad_width=pw, constant_values=cv):
                     expected = np.pad(arr_1, pad_width=pw, mode=mode, constant_values=cv)
-                    actual = GenericPadNd(pad_width=pw, mode=mode, constant_values=cv)(arr_2).numpy()
+                    actual = Padder(pad_width=pw, mode=mode, constant_values=cv).forward(arr_2, axes=None).numpy()
                     self.assertArrayEqual(expected, actual)
 
     def test_stat_padding(self):
@@ -67,7 +87,7 @@ class MyTestCase(unittest.TestCase):
                                       [stat_length_scalar, stat_length_pair, stat_length_list]):
                     with self.subTest(shape=shape, mode=mode, stat_length=sl):
                         expected = np.pad(arr_1, pad_width=pw, mode=mode, stat_length=sl)
-                        actual = GenericPadNd(pad_width=pw, mode=mode, stat_length=sl)(arr_2).numpy()
+                        actual = Padder(pad_width=pw, mode=mode, stat_length=sl).forward(arr_2, axes=None).numpy()
                         self.assertArrayEqual(expected, actual)
 
     def test_replicate(self):
@@ -88,7 +108,7 @@ class MyTestCase(unittest.TestCase):
             for pw in [pad_width_scalar, pad_width_pair, pad_width_list]:
                 with self.subTest(shape=shape, pad_width=pw):
                     expected = np.pad(arr_1, pad_width=pw, mode=mode_np)
-                    actual = GenericPadNd(pad_width=pw, mode=mode_ti)(arr_2).numpy()
+                    actual = Padder(pad_width=pw, mode=mode_ti).forward(arr_2, axes=None).numpy()
                     self.assertArrayEqual(expected, actual)
 
     def test_smooth_padding(self):
@@ -125,7 +145,7 @@ class MyTestCase(unittest.TestCase):
                     # print("calculating expected")
                     expected = pywt.pad(arr_1, pw, mode=mode)
                     # print("calculating actual")
-                    actual = GenericPadNd(pad_width=pw, mode=mode)(arr_2).numpy()
+                    actual = Padder(pad_width=pw, mode=mode).forward(arr_2, axes=None).numpy()
                     # print("Done.")
                     self.assertArrayEqual(expected, actual)
 
@@ -157,7 +177,7 @@ class MyTestCase(unittest.TestCase):
                         print("calculating expected")
                         expected = pywt.pad(arr_1, pad_widths=pw, mode=mode_wt)
                         print("calculating actual")
-                        actual = GenericPadNd(pad_width=pw, mode=mode_ti)(arr_2).numpy()
+                        actual = Padder(pad_width=pw, mode=mode_ti).forward(arr_2, axes=None).numpy()
                         print("Done.")
                         self.assertArrayEqual(expected, actual)
 
@@ -181,7 +201,7 @@ class MyTestCase(unittest.TestCase):
                     print("calculating expected")
                     expected = np.pad(arr_1, pad_width=pw, mode="symmetric", reflect_type="odd")
                     print("calculating actual")
-                    actual = GenericPadNd(pad_width=pw, mode="odd_symmetric")(arr_2).numpy()
+                    actual = Padder(pad_width=pw, mode="odd_symmetric").forward(arr_2, axes=None).numpy()
                     print("Done.")
                     self.assertArrayEqual(expected, actual)
 
@@ -207,7 +227,7 @@ class MyTestCase(unittest.TestCase):
                                   [end_values_scalar, end_values_pair, end_values_list]):
                 with self.subTest(shape=shape, pad_width=pw, end_values=ev):
                     expected = np.pad(arr_1, pad_width=pw, mode=mode, end_values=ev)
-                    actual = GenericPadNd(pad_width=pw, mode=mode, end_values=ev)(arr_2).numpy()
+                    actual = Padder(pad_width=pw, mode=mode, end_values=ev).forward(arr_2, axes=None).numpy()
                     self.assertArrayEqual(expected, actual)
 
 

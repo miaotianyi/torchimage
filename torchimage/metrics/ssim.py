@@ -25,9 +25,9 @@ def _mu_sigma(img1, img2, filter_layer, scaling_factor):
     sigma12 = filter_layer(img1 * img2) - mu1_mu2
 
     if scaling_factor is not None:
-        sigma1_sq *= scaling_factor
-        sigma2_sq *= scaling_factor
-        sigma12 *= scaling_factor
+        sigma1_sq = sigma1_sq * scaling_factor
+        sigma2_sq = sigma2_sq * scaling_factor
+        sigma12 = sigma12 * scaling_factor
 
     return mu1_sq, mu2_sq, mu1_mu2, sigma1_sq, sigma2_sq, sigma12
 
@@ -216,9 +216,9 @@ def multiscale_ssim(img1, img2, window_size=11,
         mcs = _map_mean(cs_map, keep_channels, crop_edge, window_size)  # mean cs of shape [n,] or [n, c]
 
         if use_prod:
-            overall_mssim *= mcs ** weights[i]
+            overall_mssim = overall_mssim * mcs ** weights[i]
         else:
-            overall_mssim += mcs * weights[i]
+            overall_mssim = overall_mssim + mcs * weights[i]
         img1, img2 = downsample(img1), downsample(img2)
 
     mu1_sq, mu2_sq, mu1_mu2, sigma1_sq, sigma2_sq, sigma12 = _mu_sigma(img1, img2, filter_layer, scaling_factor)
@@ -226,8 +226,8 @@ def multiscale_ssim(img1, img2, window_size=11,
     mssim_last = _map_mean(ssim_map_last, keep_channels, crop_edge, window_size)
 
     if use_prod:
-        overall_mssim *= mssim_last ** weights[-1]
+        overall_mssim = overall_mssim * mssim_last ** weights[-1]
     else:
-        overall_mssim += mssim_last * weights[-1]
+        overall_mssim = overall_mssim + mssim_last * weights[-1]
 
     return overall_mssim

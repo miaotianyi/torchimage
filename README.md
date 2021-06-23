@@ -6,6 +6,29 @@ PyTorch utilities for classic image processing and evaluation
 
 [Documentation](https://torchimage.readthedocs.org)
 
+Highlights:
+
+1. ``from torchimage.utils import NdSpec`` introduces a ``NdSpec`` class.
+   It automatically converts user input in parameters like ``kernel_size``,
+   which can be a scalar or list of scalars (unknown until runtime),
+   into a wrapped class with a ``__getitem__`` method.
+
+2. ``from torchimage.padding import Padder`` offers the most versatile Pytorch
+   padding functionalities to date, including
+   zeros, constant, replicate, smooth, circular, periodize, symmetric,
+   reflect, antisymmetric, odd_reflect, odd_symmetric, linear_ramp,
+   maximum, mean, median, minimum, empty.
+   
+3. ``from torchimage.pooling import GaussianPoolNd, AvgPoolNd`` offers
+   faster gaussian pooling and average pooling at arbitrary dimensions.
+   (It is approximately 10x faster than PyTorch thanks to separable filtering.)
+
+4. Edge detection
+
+5. Metrics such as SSIM, multiscale SSIM, PSNR 
+
+5. Polynomial feature creation 
+
 Motivation:
 
 1. We might want to use some classic image processing algorithms

@@ -2,6 +2,7 @@
 Private utility functions for padding
 """
 import torch
+from math import ceil
 
 
 def make_idx(*args, dim, ndim):
@@ -13,7 +14,7 @@ def make_idx(*args, dim, ndim):
 
     Parameters
     ----------
-    *args : tuple of int or None
+    *args : int or None
         constructor arguments for the slice object at target axis
 
     dim : int
@@ -58,6 +59,62 @@ def modify_idx(*args, idx, dim):
     new_idx = list(idx)
     new_idx[dim] = slice(*args)
     return tuple(new_idx)
+
+
+def same_padding_width(kernel_size, stride=1, in_size=None):
+    """
+    Calculate the padding width before and after a certain axis
+    using "same padding" method.
+
+    When stride is 1, input size at that axis doesn't matter
+    and the output tensor will have the same shape as the
+    input tensor, hence the name "same padding".
+
+    When stride is greater than 1, same padding can be intuitively
+    described as "letting the kernel cover every element of
+    the original tensor, while making padding width before and
+    after the axis roughly the same." (unlike valid padding,
+    which doesn't pad at all and the last pixels will be ignored
+    if input tensor's side length doesn't match kernel size and stride)
+
+    This convention is taken from a TensorFlow documentation page
+    which no longer exists.
+
+    Parameters
+    ----------
+    kernel_size : int
+        The convolution kernel size at that axis
+
+    stride : int
+        The convolution stride at that axis. Default: 1.
+
+    in_size : int
+        The side length of the input tensor at that axis.
+
+        Can be None if stride is 1.
+
+    Returns
+    -------
+    pad_before, pad_after : int
+        The number of padded elements required by same padding
+        before and after the axis.
+    """
+    if stride == 1:
+        pad_total = kernel_size - 1
+    else:
+        if in_size is None:
+            raise ValueError(f"when stride={stride} instead of 1, in_size is required for same padding width")
+        if stride is None:
+            stride = kernel_size
+        # expected output tensor size at axis with same padding
+        out_size = ceil(in_size / stride)  # in_size == outsize with stride=1
+        pad_total = (out_size - 1) * stride + kernel_size - in_size
+
+    pad_total = max(pad_total, 0)
+    pad_after = pad_total // 2  # we follow scipy's same-padding convention
+    # pad_after is smaller if it's different from pad_before
+    pad_before = pad_total - pad_after
+    return pad_before, pad_after
 
 
 def _check_padding(x, pad):
