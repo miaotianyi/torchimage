@@ -23,11 +23,17 @@ Highlights:
    faster gaussian pooling and average pooling at arbitrary dimensions.
    (It is approximately 10x faster than PyTorch thanks to separable filtering.)
 
-4. Edge detection
+4. ``from torchimage.metrics import SSIM, MultiSSIM, PSNR, MSE`` brings
+   differentiable metrics in image processing.
+   
+5. ``from torchimage.filtering import Sobel, Prewitt, Farid, Scharr, GaussianGrad, Laplace, LaplacianOfGaussian``
+   offers a range of edge detection modules.
+   
+6. ``from torchimage.filtering import UnsharpMask`` implements image
+   sharpening algorithm
 
-5. Metrics such as SSIM, multiscale SSIM, PSNR 
-
-5. Polynomial feature creation 
+7. ``from torchimage.misc import poly1d`` calculates fast single-variable
+   polynomial with constant coefficients.
 
 Motivation:
 
