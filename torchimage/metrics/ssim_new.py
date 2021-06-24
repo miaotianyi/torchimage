@@ -83,7 +83,7 @@ class SSIM:
         # access last-used padding width
         for i, a in enumerate(axes):
             pad_before, pad_after = pad_width[i]
-            idx[i] = slice(pad_before, full.shape[a]-pad_after)
+            idx[a] = slice(pad_before, full.shape[a]-pad_after)
         return full[tuple(idx)]
 
     def forward_score(self, x: torch.Tensor, content_axes: tuple, avg_axes: tuple):
