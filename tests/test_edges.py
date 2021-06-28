@@ -28,7 +28,7 @@ class MyTestCase(unittest.TestCase):
             x1 = torch.rand(np.random.randint(10, 50), np.random.randint(10, 50), dtype=torch.float64)
             x2 = x1.numpy()
 
-            ti_filter = ti_cls(normalize=True, same_padder=Padder(mode="symmetric"))
+            ti_filter = ti_cls(normalize=True, same_padder="symmetric")
 
             # in skimage, vertical edges go from the top to the bottom
             # therefore, it represents a sharp HORIZONTAL change in color
@@ -52,7 +52,7 @@ class MyTestCase(unittest.TestCase):
             x1 = torch.rand(np.random.randint(10, 50), np.random.randint(10, 50), dtype=torch.float64)
             x2 = x1.numpy()
 
-            sobel = edges.Sobel(normalize=False, same_padder=Padder(mode=ti_mode))
+            sobel = edges.Sobel(normalize=False, same_padder=ti_mode)
             y_expected = ndimage.sobel(x2, axis=-1, mode=ndimage_mode)
             y_actual = sobel.component(x1, -1, -2).numpy()
             with self.subTest(shape=x1.shape, edge_axis=-1, mode=ti_mode, name="sobel"):
@@ -68,7 +68,7 @@ class MyTestCase(unittest.TestCase):
             x1 = torch.rand(np.random.randint(10, 50), np.random.randint(10, 50), dtype=torch.float64)
             x2 = x1.numpy()
 
-            prewitt = edges.Prewitt(normalize=False, same_padder=Padder(mode=ti_mode))
+            prewitt = edges.Prewitt(normalize=False, same_padder=ti_mode)
             y_expected = ndimage.prewitt(x2, axis=-1, mode=ndimage_mode)
             y_actual = prewitt.component(x1, -1, -2).numpy()
             with self.subTest(shape=x1.shape, edge_axis=-1, mode=ti_mode, name="sobel"):
@@ -88,7 +88,7 @@ class MyTestCase(unittest.TestCase):
             x1 = torch.rand(*shape, dtype=torch.float64)
             x2 = x1.numpy()
             expected = ndimage.gaussian_gradient_magnitude(x2, sigma=sigma, mode=ndimage_mode, truncate=truncate)
-            gg = edges.GaussianGrad(sigma=sigma, kernel_size=int(truncate*sigma*2+1), same_padder=Padder(mode=ti_mode))
+            gg = edges.GaussianGrad(sigma=sigma, kernel_size=int(truncate*sigma*2+1), same_padder=ti_mode)
             # epsilon = 0 for precision
             actual = gg.magnitude(x1, axes=None, epsilon=0.0).numpy()
             with self.subTest(mode=ti_mode, shape=shape, sigma=sigma, truncate=truncate):
@@ -96,7 +96,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_laplace_2(self):
         for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
-            laplace_2 = edges.Laplace(same_padder=Padder(mode=ti_mode))
+            laplace_2 = edges.Laplace(same_padder=ti_mode)
             x1 = torch.rand(30, 23, dtype=torch.float64)
             x2 = x1.numpy()
             y_actual = laplace_2.forward(x1, axes=None).numpy()

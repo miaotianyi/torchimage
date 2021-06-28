@@ -30,7 +30,7 @@ from ..padding.utils import make_idx
 
 
 class EdgeDetector:
-    def __init__(self, edge_kernel, smooth_kernel, *, normalize=False, same_padder: Padder = None):
+    def __init__(self, edge_kernel, smooth_kernel, *, normalize=False, same_padder=None):
         super(EdgeDetector, self).__init__()
 
         # initialize kernels/weights
@@ -137,22 +137,22 @@ class EdgeDetector:
 
 
 class Sobel(EdgeDetector):
-    def __init__(self, *, normalize=False, same_padder=Padder(mode="reflect")):
+    def __init__(self, *, normalize=False, same_padder="reflect"):
         super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(1, 2, 1), normalize=normalize, same_padder=same_padder)
 
 
 class Prewitt(EdgeDetector):
-    def __init__(self, *, normalize=False, same_padder=Padder(mode="reflect")):
+    def __init__(self, *, normalize=False, same_padder="reflect"):
         super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(1, 1, 1), normalize=normalize, same_padder=same_padder)
 
 
 class Scharr(EdgeDetector):
-    def __init__(self, *, normalize=False, same_padder=Padder(mode="reflect")):
+    def __init__(self, *, normalize=False, same_padder="reflect"):
         super().__init__(edge_kernel=(-1, 0, 1), smooth_kernel=(3, 10, 3), normalize=normalize, same_padder=same_padder)
 
 
 class Farid(EdgeDetector):
-    def __init__(self, *, normalize=False, same_padder=Padder(mode="reflect")):
+    def __init__(self, *, normalize=False, same_padder="reflect"):
         # These filter weights can be found in Farid & Simoncelli (2004),
         # Table 1 (3rd and 4th row). Additional decimal places were computed
         # using the code found at https://www.cs.dartmouth.edu/farid/
@@ -165,7 +165,7 @@ class Farid(EdgeDetector):
 
 class GaussianGrad(EdgeDetector):
     def __init__(self, kernel_size, sigma, edge_kernel_size=None, edge_sigma=None, normalize=True, edge_order=1,
-                 same_padder=Padder(mode="reflect")):
+                 same_padder="reflect"):
         kernel_size = NdSpec(kernel_size, item_shape=[])
         sigma = NdSpec(sigma, item_shape=[])
         smooth = NdSpec.apply(lambda ks, s: gaussian_kernel_1d(kernel_size=ks, sigma=s, order=0), kernel_size, sigma)
@@ -210,7 +210,7 @@ class Laplace:
     same shape, so we recommend ``same=True``.
     """
 
-    def __init__(self, *, same_padder=Padder(mode="reflect")):
+    def __init__(self, *, same_padder="reflect"):
         self.ed = EdgeDetector(edge_kernel=(1, -2, 1), smooth_kernel=(), normalize=False, same_padder=same_padder)
 
     def forward(self, x: torch.Tensor, axes):

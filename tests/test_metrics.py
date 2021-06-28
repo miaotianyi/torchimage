@@ -62,7 +62,7 @@ class MyTestCase(unittest.TestCase):
                     y1.numpy(), y2.numpy(), win_size=win_size, gradient=False, data_range=1,
                     multichannel=multichannel, gaussian_weights=gaussian_weights, full=True)
                 actual_score, actual_full = SSIM(
-                    blur=blur, padder=Padder(mode="symmetric"), K1=0.01, K2=0.03,
+                    blur=blur, padder="symmetric", K1=0.01, K2=0.03,
                     use_sample_covariance=True, crop_border=True).forward(
                     y1, y2, axes=content_axes, channel_axes=channel_axes
                 )

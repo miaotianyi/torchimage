@@ -9,7 +9,7 @@ from ..pooling import BasePoolNd, AvgPoolNd, GaussianPoolNd
 
 class SSIM:
     def __init__(self, blur: BasePoolNd = "gaussian",
-                 padder: Padder = Padder(mode="replicate"),
+                 padder="replicate",
                  K1=0.01, K2=0.03,
                  use_sample_covariance=True, crop_border=True):
         if blur == "gaussian":
