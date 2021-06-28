@@ -119,11 +119,17 @@ class EdgeDetector:
             #     c = torch.abs(c)
 
             if magnitude is None:
-                magnitude = c ** p
+                magnitude = c ** p if p != 1 else c
             else:
-                magnitude += c ** p
+                magnitude += c ** p if p != 1 else c
 
-        return (magnitude + epsilon) ** (1 / p)
+        if epsilon != 0:
+            magnitude += epsilon
+
+        if p == 1:
+            return magnitude
+        else:
+            return magnitude ** (1 / p)
 
 
 class Sobel(EdgeDetector):
@@ -172,13 +178,13 @@ class GaussianGrad(EdgeDetector):
         super().__init__(edge_kernel=edge, smooth_kernel=smooth, normalize=normalize, same_padder=same_padder)
 
 
-class Laplace(EdgeDetector):
+class Laplace:
     """
     Edge detection with discrete Laplace operator
 
     Unlike SeparablePoolNd, which sequentially applies
     1d convolution on previous output at each axis,
-    LaplacePoolNd simultaneously applies the kernel to
+    Laplace simultaneously applies the kernel to
     each axis, generating n output tensors in parallel;
     these output tensors are then added to obtain a
     final output.
@@ -201,15 +207,13 @@ class Laplace(EdgeDetector):
     """
 
     def __init__(self, *, same_padder=Padder(mode="reflect")):
-        super().__init__(edge_kernel=(1, -2, 1), smooth_kernel=(), normalize=False, same_padder=same_padder)
+        self.ed = EdgeDetector(edge_kernel=(1, -2, 1), smooth_kernel=(), normalize=False, same_padder=same_padder)
 
-    def forward(self, x, mode="magnitude", *, edge_axis=-1, smooth_axes=-2, axes=None,
-                epsilon=0.0, p=1):
-        return super(Laplace, self).forward(x=x, mode=mode, edge_axis=edge_axis, smooth_axes=smooth_axes,
-                                            axes=axes, epsilon=epsilon, p=p)
+    def forward(self, x: torch.Tensor, axes):
+        return self.ed.magnitude(x, axes=axes, epsilon=0, p=1)
 
 
-class LaplacianOfGaussian:  # (nn.Module):
+class LaplacianOfGaussian:
     """
     The same as scipy.ndimage.gaussian_laplace
     """

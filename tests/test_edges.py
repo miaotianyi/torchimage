@@ -109,21 +109,18 @@ class MyTestCase(unittest.TestCase):
         truncate = 2
         ks = int(sigma * truncate * 2 + 1)
 
-        from matplotlib import pyplot as plt
-
         for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
             x1 = torch.rand(17, 24, dtype=torch.float64)
             x2 = x1.numpy()
             y_actual = edges.LaplacianOfGaussian(kernel_size=ks, sigma=sigma, same_padder=Padder(mode=ti_mode)).forward(x1).numpy()
             y_expected = ndimage.gaussian_laplace(x2, sigma=sigma, mode=ndimage_mode, truncate=truncate)
 
-            fig, ax = plt.subplots(1, 2)
-            ax[0].imshow(y_expected)
-            ax[0].set_title("expected")
-            ax[1].imshow(y_actual)
-            ax[1].set_title("actual")
-            plt.show()
-
+            # fig, ax = plt.subplots(1, 2)
+            # ax[0].imshow(y_expected)
+            # ax[0].set_title("expected")
+            # ax[1].imshow(y_actual)
+            # ax[1].set_title("actual")
+            # plt.show()
 
             with self.subTest(mode=ti_mode):
                 self.assertLess(np.abs(y_actual - y_expected).max(), 1e-15)
