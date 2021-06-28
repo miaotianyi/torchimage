@@ -2,6 +2,22 @@ import torch
 
 
 def describe(x: torch.Tensor):
+    """
+    Describe the distribution of numbers in the input tensor.
+
+    This function mimics the behavior of DataFrame and Series
+    describe method in pandas.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor to be described
+
+    Returns
+    -------
+    desc : dict
+        A dictionary from keywords (such as mean, std) to float values
+    """
     desc = {
         "mean": x.mean(),
         "std": x.std(),
