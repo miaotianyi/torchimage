@@ -160,6 +160,8 @@ class Padder:  # (nn.Module):
         # determine pad_func at each iteration
         if callable(mode):
             pad_func = mode
+        elif mode == "zeros":
+            return pad_1d.zeros_1d
         elif mode == "constant":
             cv = self.constant_values[i]
 

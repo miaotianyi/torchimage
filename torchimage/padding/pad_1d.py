@@ -330,6 +330,21 @@ def linear_ramp_1d(x, idx, dim, before, after):
     return x
 
 
+def zeros_1d(x, idx, dim):
+    head, tail = idx[dim].start, idx[dim].stop
+
+    def f(*args):  # fast idx modification
+        return modify_idx(*args, idx=idx, dim=dim)
+
+    if head > 0:  # should pad before
+        x[f(head)] = 0
+
+    if tail < x.shape[dim]:  # should pad after
+        x[f(tail, None)] = 0
+
+    return x
+
+
 def constant_1d(x, idx, dim, before, after):
     head, tail = idx[dim].start, idx[dim].stop
 
