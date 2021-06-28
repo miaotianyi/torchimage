@@ -45,7 +45,7 @@ class MyTestCase(unittest.TestCase):
         shape = np.random.randint(1, 10, size=np.random.randint(1, 8))
         y1, y2 = torch.rand(*shape, dtype=torch.float64), torch.rand(*shape, dtype=torch.float64)
 
-        actual = PSNR(max_value=1, reduction='mean').forward(y1, y2, axes=None).item()
+        actual = PSNR(max_value=1, reduction='mean').forward(y1, y2, reduce_axes=None).item()
         expected = peak_signal_noise_ratio(y1.numpy(), y2.numpy(), data_range=1)
         self.assertLess(np.abs(actual - expected), 1e-10)
 
@@ -57,14 +57,14 @@ class MyTestCase(unittest.TestCase):
         win_size = 11
 
         for gaussian_weights, blur in [(True, "gaussian"), (False, "mean")]:
-            for multichannel, channel_axes, content_axes in [(False, (), None), (True, -1, slice(0, -1))]:
+            for multichannel, reduce_axes, content_axes in [(False, None, None), (True, None, slice(0, -1))]:
                 expected_score, expected_full = structural_similarity(
                     y1.numpy(), y2.numpy(), win_size=win_size, gradient=False, data_range=1,
                     multichannel=multichannel, gaussian_weights=gaussian_weights, full=True)
                 actual_score, actual_full = SSIM(
                     blur=blur, padder="symmetric", K1=0.01, K2=0.03,
                     use_sample_covariance=True, crop_border=True).forward(
-                    y1, y2, axes=content_axes, channel_axes=channel_axes
+                    y1, y2, content_axes=content_axes, reduce_axes=reduce_axes
                 )
                 actual_score = actual_score.item()
                 actual_full = actual_full.numpy()

@@ -75,29 +75,28 @@ class SSIM:
         C2 = self.K2 ** 2
         return ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
 
-    def _crop_border(self, full: torch.Tensor, axes: tuple):
+    def _crop_border(self, full: torch.Tensor, content_axes: tuple):
         if not self.crop_border:
             return full
         idx = [slice(None)] * full.ndim  # new idx slice
         pad_width = self.blur.same_padder.pad_width
         # access last-used padding width
-        for i, a in enumerate(axes):
+        for i, a in enumerate(content_axes):
             pad_before, pad_after = pad_width[i]
             idx[a] = slice(pad_before, full.shape[a]-pad_after)
         return full[tuple(idx)]
 
-    def forward_score(self, x: torch.Tensor, content_axes: tuple, avg_axes: tuple):
-        return self._crop_border(x, axes=content_axes).mean(dim=avg_axes)
+    def _reduce(self, x: torch.Tensor, content_axes: tuple, reduce_axes: tuple):
+        return self._crop_border(x, content_axes=content_axes).mean(dim=reduce_axes)
 
-    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=slice(2, None), channel_axes=(1,)):
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, content_axes=slice(2, None), reduce_axes=slice(1, None)):
         assert y_pred.shape == y_true.shape
 
-        axes = check_axes(y_pred, axes)
-        channel_axes = check_axes(y_pred, channel_axes)
-        avg_axes = channel_axes + axes
+        content_axes = check_axes(y_pred, content_axes)
+        reduce_axes = check_axes(y_pred, reduce_axes)
 
-        full = self._ssim_full(y1=y_pred, y2=y_true, axes=axes)
-        score = self.forward_score(full, content_axes=axes, avg_axes=avg_axes)
+        full = self._ssim_full(y1=y_pred, y2=y_true, axes=content_axes)
+        score = self._reduce(full, content_axes=content_axes, reduce_axes=reduce_axes)
         return score, full
 
 
@@ -105,7 +104,7 @@ class MultiSSIM(SSIM):
     def __init__(self,
                  weights=None, use_prod=True,
                  blur: BasePoolNd = "gaussian",
-                 padder: Padder = Padder(mode="replicate"),
+                 padder="replicate",
                  K1=0.01, K2=0.03,
                  use_sample_covariance=True, crop_border=True
                  ):

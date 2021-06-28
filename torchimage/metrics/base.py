@@ -27,7 +27,7 @@ class BaseMetric:
     ``'none'`` (do not change full output at all).
     """
     @abstractmethod
-    def forward_full(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes):
+    def forward_full(self, y_pred: torch.Tensor, y_true: torch.Tensor):
         pass
 
     def __init__(self, *, reduction="mean"):
@@ -43,14 +43,14 @@ class BaseMetric:
         else:
             raise ValueError(f"Unknown reduction mode: {self.reduction}")
 
-    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=None):
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, reduce_axes=None):
         assert y_pred.shape == y_true.shape
 
-        axes = check_axes(y_pred, axes)
+        reduce_axes = check_axes(y_pred, reduce_axes)
         # don't need to check axes later
 
-        x = self.forward_full(y_pred=y_pred, y_true=y_true, axes=axes)
-        x = self._reduce(x, axes=axes)
+        x = self.forward_full(y_pred=y_pred, y_true=y_true)
+        x = self._reduce(x, axes=reduce_axes)
         return x
 
     @staticmethod
