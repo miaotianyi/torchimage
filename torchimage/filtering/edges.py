@@ -71,15 +71,6 @@ class EdgeDetector:
     def _conv_smooth(self, x: torch.Tensor, smooth_axes):
         return self.smooth_filter.forward(x, axes=smooth_axes)
 
-    def forward(self, x, mode="magnitude", *, edge_axis=-1, smooth_axes=-2, axes=None,
-                epsilon=0.0, p=2):
-        if mode == "component":
-            return self.component(x, edge_axis=edge_axis, smooth_axes=smooth_axes)
-        elif mode == "magnitude":
-            return self.magnitude(x, axes=axes, epsilon=epsilon, p=p)
-        else:
-            raise ValueError(f"Edge detector mode must be component or magnitude, got {mode} instead")
-
     def component(self, x, edge_axis, smooth_axes):
         edge_axis = check_axes(x, edge_axis)
         if len(edge_axis) != 1:
@@ -94,6 +85,19 @@ class EdgeDetector:
         x = self._conv_edge(x, edge_axis=edge_axis)
         x = self._conv_smooth(x, smooth_axes=smooth_axes)
         return x
+
+    def all_components(self, x, axes=None):
+        axes = check_axes(x, axes)
+        if len(axes) < 2:
+            raise ValueError(f"Image gradient computation requires at least 2 axes, got {axes} instead")
+
+        component_list = []
+
+        for edge_axis in axes:
+            # edge component at edge_axis
+            c = self.component(x, edge_axis=edge_axis, smooth_axes=axes)
+            component_list.append(c)
+        return component_list
 
     def horizontal(self, x):
         return self.component(x, edge_axis=-2, smooth_axes=-1)
@@ -111,9 +115,9 @@ class EdgeDetector:
 
         magnitude = None
 
-        for i, edge_axis in enumerate(axes):
+        for edge_axis in axes:
             # edge component at edge_axis
-            c = self.component(x, edge_axis=edge_axis, smooth_axes=axes[:i]+axes[i+1:])
+            c = self.component(x, edge_axis=edge_axis, smooth_axes=axes)
 
             # if p % 2 == 1:  # odd L^p norm -> need abs
             #     c = torch.abs(c)
