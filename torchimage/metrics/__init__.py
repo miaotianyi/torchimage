@@ -1,11 +1,11 @@
 from .psnr import PSNR
 from .mse import MSE
 from .ssim import ssim, multiscale_ssim
-from .ssim_new import SSIM, MultiSSIM
+from .ssim_new import SSIM, MS_SSIM
 
 
 __all__ = [
     "PSNR", "MSE",
     "ssim", "multiscale_ssim",
-    "SSIM", "MultiSSIM"
+    "SSIM", "MS_SSIM"
 ]

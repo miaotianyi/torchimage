@@ -6,7 +6,7 @@ from torch.nn import MSELoss
 
 from torchimage.metrics.mse import MSE
 from torchimage.metrics.psnr import PSNR
-from torchimage.metrics.ssim_new import SSIM, MultiSSIM
+from torchimage.metrics.ssim_new import SSIM, MS_SSIM
 
 from torchimage.padding import Padder
 
@@ -50,8 +50,9 @@ class MyTestCase(unittest.TestCase):
         self.assertLess(np.abs(actual - expected), 1e-10)
 
     def test_ssim_1(self):
+        # TODO: padding is too slow in high dimensions (e.g. 5)
         shape = np.random.randint(15, 20, size=np.random.randint(1, 6))
-        # shape = (15, 21)
+
         y1, y2 = torch.rand(*shape, dtype=torch.float64), torch.rand(*shape, dtype=torch.float64)
 
         win_size = 11
@@ -60,11 +61,13 @@ class MyTestCase(unittest.TestCase):
             for multichannel, reduce_axes, content_axes in [(False, None, None), (True, None, slice(0, -1))]:
                 expected_score, expected_full = structural_similarity(
                     y1.numpy(), y2.numpy(), win_size=win_size, gradient=False, data_range=1,
-                    multichannel=multichannel, gaussian_weights=gaussian_weights, full=True)
+                    multichannel=multichannel, gaussian_weights=gaussian_weights, full=True,
+                    use_sample_covariance=False,
+                )
                 actual_score, actual_full = SSIM(
                     blur=blur, padder="symmetric", K1=0.01, K2=0.03,
-                    use_sample_covariance=True, crop_border=True).forward(
-                    y1, y2, content_axes=content_axes, reduce_axes=reduce_axes
+                    use_sample_covariance=False, crop_border=True).forward(
+                    y1, y2, content_axes=content_axes, reduce_axes=reduce_axes, full=True
                 )
                 actual_score = actual_score.item()
                 actual_full = actual_full.numpy()
@@ -72,7 +75,21 @@ class MyTestCase(unittest.TestCase):
                     self.assertLess(np.abs(actual_full - expected_full).max(), 1e-13)
                     self.assertLess(abs(expected_score - actual_score), 1e-14)
 
+    @unittest.skip
+    def test_multi_ssim(self):
+        # from IQA_pytorch import MS_SSIM as their_ms_ssim, SSIM as their_ssim
+        from examples.multi_ssim import MS_SSIM as their_ms_ssim
+        from torchimage.metrics.ssim import multiscale_ssim as old_ssim
+        from torchimage.random import add_gauss_noise
+        y1 = torch.rand(1, 3, 256, 256, dtype=torch.float64)
+        # y2 = add_gauss_noise(y1, sigma=0.08).clamp(0, 1)
+        y2 = torch.rand(1, 3, 256, 256, dtype=torch.float64)
 
+        expected = their_ms_ssim(data_range=1).forward(y1, y2)
+        actual = MS_SSIM(use_prod=True, padder=None, use_sample_covariance=True, crop_border=True).forward(
+            y1, y2, content_axes=(2, 3), reduce_axes=(1, 2, 3))[0]
+        print(expected.item())
+        print(actual.item())
 
 
 if __name__ == '__main__':

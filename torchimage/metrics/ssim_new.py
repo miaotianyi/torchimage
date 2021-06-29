@@ -9,7 +9,7 @@ from ..pooling import BasePoolNd, AvgPoolNd, GaussianPoolNd
 
 class SSIM:
     def __init__(self, blur: BasePoolNd = "gaussian",
-                 padder="replicate",
+                 padder=None,
                  K1=0.01, K2=0.03,
                  use_sample_covariance=True, crop_border=True):
         if blur == "gaussian":
@@ -76,7 +76,7 @@ class SSIM:
         return ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
 
     def _crop_border(self, full: torch.Tensor, content_axes: tuple):
-        if not self.crop_border:
+        if not self.crop_border or self.blur.same_padder is None:
             return full
         idx = [slice(None)] * full.ndim  # new idx slice
         pad_width = self.blur.same_padder.pad_width
@@ -89,23 +89,28 @@ class SSIM:
     def _reduce(self, x: torch.Tensor, content_axes: tuple, reduce_axes: tuple):
         return self._crop_border(x, content_axes=content_axes).mean(dim=reduce_axes)
 
-    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, content_axes=slice(2, None), reduce_axes=slice(1, None)):
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor,
+                content_axes=slice(2, None), reduce_axes=slice(1, None), *, full=False):
         assert y_pred.shape == y_true.shape
 
         content_axes = check_axes(y_pred, content_axes)
         reduce_axes = check_axes(y_pred, reduce_axes)
 
-        full = self._ssim_full(y1=y_pred, y2=y_true, axes=content_axes)
-        score = self._reduce(full, content_axes=content_axes, reduce_axes=reduce_axes)
-        return score, full
+        full_tensor = self._ssim_full(y1=y_pred, y2=y_true, axes=content_axes)
+        score = self._reduce(full_tensor, content_axes=content_axes, reduce_axes=reduce_axes)
+        if full:
+            return score, full_tensor
+        else:
+            return score
 
 
-class MultiSSIM(SSIM):
+class MS_SSIM(SSIM):
     def __init__(self,
                  weights=None, use_prod=True,
                  blur: BasePoolNd = "gaussian",
-                 padder="replicate",
+                 padder=None,
                  K1=0.01, K2=0.03,
+                 eps=1e-8,
                  use_sample_covariance=True, crop_border=True
                  ):
         super().__init__(blur=blur, padder=padder, K1=K1, K2=K2,
@@ -118,6 +123,7 @@ class MultiSSIM(SSIM):
             self.weights = weights
 
         self.use_prod = use_prod
+        self.eps = eps
 
     @staticmethod
     def _downsample(x: torch.Tensor, axes: tuple):
@@ -141,7 +147,8 @@ class MultiSSIM(SSIM):
         for i, a in enumerate(axes):
             assert x.shape[a] / factor > self.blur.kernel_size[i]
 
-    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, axes=slice(2, None), channel_axes=(1, )):
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor,
+                content_axes=slice(2, None), reduce_axes=slice(1, None), **kwargs):
         # before score computation, channel axes will be averaged first
         # so the final axes are just the sample dimensions
 
@@ -149,50 +156,48 @@ class MultiSSIM(SSIM):
         assert y_pred.shape == y_true.shape
 
         # axes
-        axes = check_axes(y_pred, axes)
-        channel_axes = check_axes(y_pred, channel_axes)
-        avg_axes = channel_axes + axes
+        content_axes = check_axes(y_pred, content_axes)
+        reduce_axes = check_axes(y_pred, reduce_axes)
 
         # content axes are large enough
-        self._check_shape_large_enough(y_pred, axes=axes)
+        self._check_shape_large_enough(y_pred, axes=content_axes)
 
         final_score = None
 
         y1, y2 = y_pred, y_true
 
         for i in range(self.n_levels - 1):  # only last layer uses full l*c*s
-            cs_full = self._cs_full(y1=y1, y2=y2, axes=axes)  # n, c, d, h, w
-            cs_full = self._crop_border(cs_full, axes=axes)
-            cs_score = cs_full.mean(dim=avg_axes, keepdim=False)
+            cs_full = self._cs_full(y1=y1, y2=y2, axes=content_axes)  # n, c, d, h, w
+            cs_full = self._crop_border(cs_full, content_axes=content_axes)
+            cs_score = cs_full.mean(dim=content_axes, keepdim=True)
 
             if final_score is None:
                 if self.use_prod:
-                    final_score = cs_score ** self.weights[i]
+                    final_score = cs_score.clamp(self.eps) ** self.weights[i]
                 else:
                     final_score = cs_score * self.weights[i]
             else:
                 if self.use_prod:
-                    final_score *= cs_score ** self.weights[i]
+                    final_score *= cs_score.clamp(self.eps) ** self.weights[i]
                 else:
                     final_score += cs_score * self.weights[i]
 
-            y1 = self._downsample(y1, axes=axes)
-            y2 = self._downsample(y2, axes=axes)
+            y1 = self._downsample(y1, axes=content_axes)
+            y2 = self._downsample(y2, axes=content_axes)
 
-        ssim_full = self._ssim_full(y1=y1, y2=y2, axes=axes)
-        ssim_full = self._crop_border(ssim_full, axes=axes)
-        ssim_score = ssim_full.mean(dim=avg_axes, keepdim=False)
+        ssim_full = self._ssim_full(y1=y1, y2=y2, axes=content_axes)
+        ssim_full = self._crop_border(ssim_full, content_axes=content_axes)
+        ssim_score = ssim_full.mean(dim=content_axes, keepdim=True)
 
         if self.use_prod:
-            final_score *= ssim_score ** self.weights[-1]
+            # negative values need to be removed
+            final_score *= ssim_score.clamp(self.eps) ** self.weights[-1]
         else:
             final_score += ssim_score * self.weights[-1]
 
+        # the scores are first separated by batches and channels
+        # only at the very end are channels aggregated
+        final_score = final_score.mean(dim=reduce_axes, keepdim=False)
+
         return final_score
-
-
-
-
-
-
 
