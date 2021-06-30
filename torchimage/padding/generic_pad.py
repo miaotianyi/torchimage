@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from torchimage.utils import NdSpec
+from ..utils import NdSpec
 from . import pad_1d
 from .utils import modify_idx, make_idx, same_padding_width
 from ..utils.validation import check_axes, check_pad_width
