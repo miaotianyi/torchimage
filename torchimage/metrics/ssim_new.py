@@ -1,17 +1,65 @@
 import numpy as np
 import torch
+from torch import nn
 
-from .base import BaseMetric
 from ..utils.validation import check_axes
-from ..padding import Padder
 from ..pooling import BasePoolNd, AvgPoolNd, GaussianPoolNd
 
 
-class SSIM:
+class SSIM(nn.Module):
     def __init__(self, blur: BasePoolNd = "gaussian",
                  padder=None,
                  K1=0.01, K2=0.03,
                  use_sample_covariance=True, crop_border=True):
+        """
+        Compute the structural similarity index between two images.
+
+        Bigger is better.
+
+        This function is intended to imitate the behavior of its counterpart in scikit-image.
+
+        Parameters
+        ----------
+        blur : str or BasePoolNd
+            A pooling layer that meaningfully takes the mean for each
+            sliding window. The user may choose to customize a BasePoolNd
+            object.
+
+            If ``"gaussian"``, will use ``GaussianPoolNd(kernel_size=11, sigma=1.5)``,
+            which is used in the original paper.
+
+            If ``"mean"``, will use ``AvgPoolNd(kernel_size=11)``
+
+            The pooling layer will be automatically converted to a filtering layer
+            with same padding, padding option specified by `padder`, and stride of 1.
+
+        padder : str or Padder
+            Padding option.
+
+        K1 : float
+            Small constant for algorithm. Default: 0.01
+
+        K2 : float
+            Small constant for algorithm. Default: 0.03
+
+        use_sample_covariance : bool
+            If True, normalize covariances by N-1 rather than N,
+            where N is the number of pixels within the sliding window.
+
+        crop_border : bool
+            Whether to ignore the strips of border in the averaging calculation
+            across the content axes (height, width, etc.).
+            Default: True (as in scikit-image)
+
+            A border pixel's input sliding window contains padded values,
+            so their values might suffer from border effects.
+
+        See Also
+        --------
+        Image Quality Assessment: From Error Visibility to Structural Similarity
+        """
+        super(SSIM, self).__init__()
+
         if blur == "gaussian":
             self.blur = GaussianPoolNd(kernel_size=11, sigma=1.5).to_filter(padder)
         elif blur == "mean":
@@ -91,6 +139,40 @@ class SSIM:
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor,
                 content_axes=slice(2, None), reduce_axes=slice(1, None), *, full=False):
+        """
+        Parameters
+        ----------
+        y_pred : torch.Tensor
+            The first input tensor.
+            Order doesn't matter because SSIM is symmetric with respect to input images.
+
+        y_true : torch.Tensor
+            The second input tensor.
+
+        content_axes : None, int, slice, tuple
+            Axes that describe the "content" of an image.
+            This includes depth, height, and width but excludes batch or channel dimensions.
+
+        reduce_axes : None, int, slice, tuple
+            The final SSIM score will average the full SSIM map across these axes.
+
+            If reduce_axes is None (all axes are reduce axes), the output score
+            will be a scalar (useful as a loss function). If reduce_axes doesn't
+            include batch axes, then it returns a 1d tensor of SSIM scores for
+            every data point.
+
+        full : bool
+            Whether to return the full SSIM map as well. Default: False.
+
+        Returns
+        -------
+        score : torch.Tensor
+            The SSIM score tensor where content axes are reduced.
+
+        full_tensor : torch.Tensor
+            The full output SSIM with the same shape as input images.
+            This argument is only returned when ``full=True``.
+        """
         assert y_pred.shape == y_true.shape
 
         content_axes = check_axes(y_pred, content_axes)
@@ -113,6 +195,36 @@ class MS_SSIM(SSIM):
                  eps=1e-8,
                  use_sample_covariance=True, crop_border=True
                  ):
+        """
+        Compute the mean multi-scale structural similarity index between two images.
+
+        The full SSIM matrix is not well-defined in this scenario,
+        because there are multiple such matrices with different shapes.
+        Therefore, it is not returned and there's no ``full`` parameter.
+
+        Parameters
+        ----------
+        weights : tuple
+            Weight for score maps in each level. Default: ``[0.0448, 0.2856, 0.3001, 0.2363, 0.1333]`` as in original paper.
+
+        use_prod : bool
+            If True, uses prod(s^weight for s in ...) instead of sum(s*weight for s in ...),
+            where s is the score map. Default: True.
+
+        blur
+        padder
+        K1
+        K2
+        eps
+        use_sample_covariance
+        crop_border
+
+        See Also
+        --------
+        Multiscale structural similarity for image quality assessment
+        https://ece.uwaterloo.ca/~z70wang/publications/msssim.pdf
+        """
+        
         super().__init__(blur=blur, padder=padder, K1=K1, K2=K2,
                          use_sample_covariance=use_sample_covariance, crop_border=crop_border)
 

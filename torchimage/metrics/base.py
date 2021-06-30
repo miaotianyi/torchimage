@@ -1,11 +1,12 @@
 from abc import abstractmethod
 
 import torch
+from torch import nn
 
 from ..utils.validation import check_axes
 
 
-class BaseMetric:
+class BaseMetric(nn.Module):
     """
     Base class for all metrics such as PSNR, SSIM, and multi-scale SSIM.
 
