@@ -112,7 +112,7 @@ class MyTestCase(unittest.TestCase):
         for ti_mode, ndimage_mode in NDIMAGE_PAD_MODES:
             x1 = torch.rand(17, 24, dtype=torch.float64)
             x2 = x1.numpy()
-            y_actual = edges.LaplacianOfGaussian(kernel_size=ks, sigma=sigma, same_padder=Padder(mode=ti_mode)).forward(x1).numpy()
+            y_actual = edges.LaplacianOfGaussian(kernel_size=ks, sigma=sigma, same_padder=ti_mode).forward(x1).numpy()
             y_expected = ndimage.gaussian_laplace(x2, sigma=sigma, mode=ndimage_mode, truncate=truncate)
 
             # fig, ax = plt.subplots(1, 2)

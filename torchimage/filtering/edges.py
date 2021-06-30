@@ -222,7 +222,7 @@ class LaplacianOfGaussian:
     The same as scipy.ndimage.gaussian_laplace
     """
 
-    def __init__(self, kernel_size, sigma, *, same_padder: Padder = Padder(mode="reflect")):
+    def __init__(self, kernel_size, sigma, *, same_padder="reflect"):
         super().__init__()
         self.kernel_size = kernel_size
         self.sigma = sigma
