@@ -15,7 +15,7 @@ def move_tensor(x: torch.Tensor, *, dtype, device):
     return torch.tensor(x, dtype=dtype, device=device)
 
 
-class BasePoolNd:
+class BasePoolNd(nn.Module):
     kernel_size: NdSpec
 
     stride: NdSpec
@@ -58,6 +58,7 @@ class BasePoolNd:
             (Some call this valid padding)
 
         """
+        super().__init__()
         self._init_padder(same_padder)
 
     def _init_padder(self, same_padder):

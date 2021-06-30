@@ -20,16 +20,16 @@ Comparison: skimage, scipy, MatLab, Kornia, OpenCV, gimp
 """
 import numpy as np
 import torch
+from torch import nn
 
 from ..pooling.gaussian import gaussian_kernel_1d
 from ..pooling.base import SeparablePoolNd
-from ..padding import Padder
 from ..utils import NdSpec
 from ..utils.validation import check_axes
 from ..padding.utils import make_idx
 
 
-class EdgeFilter:
+class EdgeFilter(nn.Module):
     def __init__(self, edge_kernel, smooth_kernel, *, normalize=False, same_padder=None):
         super(EdgeFilter, self).__init__()
 
@@ -182,7 +182,7 @@ class GaussianGrad(EdgeFilter):
         super().__init__(edge_kernel=edge, smooth_kernel=smooth, normalize=normalize, same_padder=same_padder)
 
 
-class Laplace:
+class Laplace(nn.Module):
     """
     Edge detection with discrete Laplace operator
 
@@ -211,13 +211,14 @@ class Laplace:
     """
 
     def __init__(self, *, same_padder="reflect"):
+        super().__init__()
         self.ef = EdgeFilter(edge_kernel=(1, -2, 1), smooth_kernel=(), normalize=False, same_padder=same_padder)
 
     def forward(self, x: torch.Tensor, axes):
         return self.ef.magnitude(x, axes=axes, epsilon=0, p=1)
 
 
-class LaplacianOfGaussian:
+class LaplacianOfGaussian(nn.Module):
     """
     The same as scipy.ndimage.gaussian_laplace
     """
