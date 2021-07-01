@@ -15,7 +15,7 @@ def move_tensor(x: torch.Tensor, *, dtype, device):
     return torch.tensor(x, dtype=dtype, device=device)
 
 
-class BasePoolNd:
+class BasePoolNd(nn.Module):
     kernel_size: NdSpec
 
     stride: NdSpec
@@ -28,12 +28,13 @@ class BasePoolNd:
     def forward(self, x: torch.Tensor, axes):
         pass
 
-    def __init__(self, *, same_padder: Padder = None):
+    def __init__(self, *, same_padder=None):
         """
         Parameters
         ----------
-        same_padder : Padder
-            Pad the input tensor with this same padder.
+        same_padder : Padder or str
+            Pad the input tensor with this same padder. A single string
+            can be used to indicate padding mode.
 
             Because it uses the same-padding convention to automatically
             adjust pad_width, you can leave the padder's pad_width at any
@@ -57,7 +58,18 @@ class BasePoolNd:
             (Some call this valid padding)
 
         """
-        self.same_padder = same_padder
+        super().__init__()
+        self._init_padder(same_padder)
+
+    def _init_padder(self, same_padder):
+        if same_padder is None:
+            self.same_padder = None
+        elif isinstance(same_padder, str):
+            self.same_padder = Padder(mode=same_padder)
+        elif isinstance(same_padder, Padder):
+            self.same_padder = same_padder
+        else:
+            raise ValueError(f"Unsupported padder input {same_padder} of type {type(same_padder)}")
 
     def pad(self, x: torch.Tensor, axes):
         """
@@ -106,7 +118,7 @@ class BasePoolNd:
         stride = NdSpec.apply(lambda s, ks: ks if s is None else s, stride, self.kernel_size)
         return stride
 
-    def to_filter(self, padder: Padder = None):
+    def to_filter(self, padder=None):
         """
         Modify this pooling module in-place, so that
         the stride is 1 and a same or valid padder is supplied.
@@ -119,7 +131,7 @@ class BasePoolNd:
 
         Parameters
         ----------
-        padder : Padder
+        padder : None, str or Padder
             A same padder for this pooling module in the forward
             stage. A not-None padder will override
             self.same_padder. So if self.same_padder and padder
@@ -131,7 +143,8 @@ class BasePoolNd:
             A modified self
         """
         if padder is not None:
-            self.same_padder = padder
+            # None padder in to_filter method will not override pre-existing padder
+            self._init_padder(padder)
 
         self.stride = NdSpec(1, item_shape=[])
         self._align_params()
@@ -139,7 +152,7 @@ class BasePoolNd:
 
 
 class SeparablePoolNd(BasePoolNd):  # (nn.Module):
-    def __init__(self, kernel=(), stride=None, *, same_padder: Padder = None):
+    def __init__(self, kernel=(), stride=None, *, same_padder=None):
         """
         N-dimensional separable pooling
 
@@ -162,7 +175,7 @@ class SeparablePoolNd(BasePoolNd):  # (nn.Module):
 
             If ``None``, it is the same as the kernel size at that axis.
 
-        same_padder : Padder
+        same_padder : None, str, or Padder
         """
         super(SeparablePoolNd, self).__init__(same_padder=same_padder)
         self.kernel = NdSpec(kernel, item_shape=[-1])

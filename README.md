@@ -23,7 +23,7 @@ Highlights:
    faster gaussian pooling and average pooling at arbitrary dimensions.
    (It is approximately 10x faster than PyTorch thanks to separable filtering.)
 
-4. ``from torchimage.metrics import SSIM, MultiSSIM, PSNR, MSE`` brings
+4. ``from torchimage.metrics import SSIM, MS_SSIM, PSNR, MSE`` brings
    differentiable metrics in image processing.
    
 5. ``from torchimage.filtering import Sobel, Prewitt, Farid, Scharr, GaussianGrad, Laplace, LaplacianOfGaussian``
