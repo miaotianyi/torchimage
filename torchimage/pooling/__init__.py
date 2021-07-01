@@ -14,13 +14,8 @@ from .base import BasePoolNd, SeparablePoolNd
 from .uniform import AvgPoolNd
 from .gaussian import GaussianPoolNd
 
-from .gaussian import GaussianPool
-from .generic import GenericPool2d, MedianPool2d, QuantilePool2d
 
 __all__ = [
     "BasePoolNd", "SeparablePoolNd",
     "GaussianPoolNd", "AvgPoolNd",
-
-    "GaussianPool",
-    "GenericPool2d", "MedianPool2d", "QuantilePool2d"
 ]
