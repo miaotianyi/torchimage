@@ -6,12 +6,8 @@ from torch.nn import MSELoss
 
 from torchimage.metrics.mse import MSE
 from torchimage.metrics.psnr import PSNR
-from torchimage.metrics.ssim_new import SSIM, MS_SSIM
+from torchimage.metrics.ssim import SSIM, MS_SSIM
 
-from torchimage.padding import Padder
-
-# from torchimage.metrics import ssim as my_ssim, multiscale_ssim as my_multiscale_ssim, psnr as my_psnr
-# from examples.metrics import ssim, msssim, psnr
 
 from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 
