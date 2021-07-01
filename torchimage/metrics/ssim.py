@@ -260,7 +260,7 @@ class MS_SSIM(SSIM):
             assert x.shape[a] / factor > self.blur.kernel_size[i]
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor,
-                content_axes=slice(2, None), reduce_axes=slice(1, None), **kwargs):
+                content_axes=slice(2, None), reduce_axes=slice(1, None), full=False):
         # before score computation, channel axes will be averaged first
         # so the final axes are just the sample dimensions
 
