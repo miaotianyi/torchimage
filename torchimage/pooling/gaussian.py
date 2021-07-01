@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch import nn
-from ..misc.legacy import _repeat_align
 
 from .base import SeparablePoolNd
 from ..utils import NdSpec
