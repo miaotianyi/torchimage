@@ -75,21 +75,21 @@ class MyTestCase(unittest.TestCase):
                     self.assertLess(np.abs(actual_full - expected_full).max(), 1e-13)
                     self.assertLess(abs(expected_score - actual_score), 1e-14)
 
-    @unittest.skip
-    def test_multi_ssim(self):
-        # from IQA_pytorch import MS_SSIM as their_ms_ssim, SSIM as their_ssim
-        from examples.multi_ssim import MS_SSIM as their_ms_ssim
-        from torchimage.metrics.ssim import multiscale_ssim as old_ssim
-        from torchimage.random import add_gauss_noise
-        y1 = torch.rand(1, 3, 256, 256, dtype=torch.float64)
-        # y2 = add_gauss_noise(y1, sigma=0.08).clamp(0, 1)
-        y2 = torch.rand(1, 3, 256, 256, dtype=torch.float64)
-
-        expected = their_ms_ssim(data_range=1).forward(y1, y2)
-        actual = MS_SSIM(use_prod=True, padder=None, use_sample_covariance=True, crop_border=True).forward(
-            y1, y2, content_axes=(2, 3), reduce_axes=(1, 2, 3))[0]
-        print(expected.item())
-        print(actual.item())
+    # @unittest.skip
+    # def test_multi_ssim(self):
+    #     # from IQA_pytorch import MS_SSIM as their_ms_ssim, SSIM as their_ssim
+    #     from examples.multi_ssim import MS_SSIM as their_ms_ssim
+    #     from torchimage.metrics.ssim import multiscale_ssim as old_ssim
+    #     from torchimage.random import add_gauss_noise
+    #     y1 = torch.rand(1, 3, 256, 256, dtype=torch.float64)
+    #     # y2 = add_gauss_noise(y1, sigma=0.08).clamp(0, 1)
+    #     y2 = torch.rand(1, 3, 256, 256, dtype=torch.float64)
+    #
+    #     expected = their_ms_ssim(data_range=1).forward(y1, y2)
+    #     actual = MS_SSIM(use_prod=True, padder=None, use_sample_covariance=True, crop_border=True).forward(
+    #         y1, y2, content_axes=(2, 3), reduce_axes=(1, 2, 3))[0]
+    #     print(expected.item())
+    #     print(actual.item())
 
 
 if __name__ == '__main__':
