@@ -32,6 +32,7 @@ class BaseMetric(nn.Module):
         pass
 
     def __init__(self, *, reduction="mean"):
+        super().__init__()
         self.reduction = reduction
 
     def _reduce(self, x: torch.Tensor, axes: tuple):
