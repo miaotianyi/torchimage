@@ -205,7 +205,7 @@ def run_experiment(image_path: str, result_path: str, crop_size: int or tuple, s
     result["image_path"] = image_path
 
     # prepare results
-    result["data"] = []  # 3d array (n edge options, n aug options, n loss options)
+    result["data"] = []  # 3d array (n aug options, n edge options, n loss options)
     result["aug_options"] = []  #
     result["edge_options"] = []
     result["loss_options"] = []
@@ -222,7 +222,12 @@ def run_experiment(image_path: str, result_path: str, crop_size: int or tuple, s
 
         print(result["aug_options"][-1])
 
+        # for metric in "SSIM", "VSI":
+        # metric(image_1, image_2) -> scalar
+
         for j, edge_param in enumerate(all_edge()):
+            # edge(image) -> image with new shape
+
             # save axis
             if i == 0:
                 result["edge_options"].append(edge_param)
@@ -235,7 +240,7 @@ def run_experiment(image_path: str, result_path: str, crop_size: int or tuple, s
 
             for k, loss_param in enumerate(all_loss()):
                 if i == j == 0:  # save axis
-                    result["loss_options"].append(format_keywords(loss_param))
+                    result["loss_options"].append(loss_param)
 
                 loss_func = get_loss(**loss_param)
 
@@ -354,12 +359,12 @@ def add_new_columns(result_path: str):
         aug_func = get_augment(**aug_param)
         noisy = aug_func(image)
 
-        score_ssim = SSIM(padder=Padder(mode="reflect")).forward(noisy, image, content_axes=nchw_axes, reduce_axes=None)[0]
+        score_ssim = SSIM(padder="reflect").forward(noisy, image, content_axes=nchw_axes, reduce_axes=None)[0]
         ssim_scores.append(score_ssim.mean().item())
         multi_prod_scores.append(
-            MS_SSIM(use_prod=True, padder=Padder(mode="reflect")).forward(noisy, image, content_axes=nchw_axes, reduce_axes=None).mean().item())
+            MS_SSIM(use_prod=True, padder="reflect").forward(noisy, image, content_axes=nchw_axes, reduce_axes=None).mean().item())
         multi_sum_scores.append(
-            MS_SSIM(use_prod=False, padder=Padder(mode="reflect")).forward(noisy, image, content_axes=nchw_axes, reduce_axes=None).mean().item())
+            MS_SSIM(use_prod=False, padder="reflect").forward(noisy, image, content_axes=nchw_axes, reduce_axes=None).mean().item())
     new_data = np.concatenate([data, np.array(ssim_scores).reshape([-1, 1, 1]),
                                np.array(multi_prod_scores).reshape([-1, 1, 1]),
                                np.array(multi_sum_scores).reshape([-1, 1, 1])], axis=1)
