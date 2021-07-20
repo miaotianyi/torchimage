@@ -71,6 +71,12 @@ class BasePoolNd(nn.Module):
         else:
             raise ValueError(f"Unsupported padder input {same_padder} of type {type(same_padder)}")
 
+    def _adapt_padder(self, x: torch.Tensor, axes):
+        if self.same_padder is not None:
+            axes = check_axes(x, axes)
+            self.same_padder.to_same(kernel_size=self.kernel_size, stride=self.stride,
+                                              in_shape=[x.shape[a] for a in axes])
+
     def pad(self, x: torch.Tensor, axes):
         """
         Use the bound same padder to pad the input
@@ -89,11 +95,9 @@ class BasePoolNd(nn.Module):
         x : torch.Tensor
             padded tensor
         """
-        axes = check_axes(x, axes)
         if self.same_padder is not None:
-            padder = self.same_padder.to_same(kernel_size=self.kernel_size, stride=self.stride,
-                                              in_shape=[x.shape[a] for a in axes])
-            x = padder.forward(x, axes=axes)
+            self._adapt_padder(x, axes=axes)
+            x = self.same_padder.forward(x, axes=axes)
         return x
 
     def read_stride(self, stride):
@@ -188,7 +192,7 @@ class SeparablePoolNd(BasePoolNd):  # (nn.Module):
     def _align_params(self):
         self.ndim = NdSpec.agg_index_len(self.kernel, self.stride, allowed_index_ndim=(0, 1))
 
-    def forward(self, x: torch.Tensor, axes=slice(2, None)):
+    def forward(self, x: torch.Tensor, axes=slice(2, None), separable_pad=False):
         """
         Perform separable pooling on a tensor.
 
@@ -206,6 +210,10 @@ class SeparablePoolNd(BasePoolNd):  # (nn.Module):
             The default ``slice(2, None)`` assumes that the first 2
             axes are batch (N) and channel (C) dimensions.
 
+        separable_pad : bool
+            If True, performs separable padding
+            (pads each axis only before the convolution at that axis)
+
         Returns
         -------
         x : torch.Tensor
@@ -217,11 +225,17 @@ class SeparablePoolNd(BasePoolNd):  # (nn.Module):
         kernel = self.kernel.map(lambda k: move_tensor(k, dtype=x.dtype, device=x.device))
 
         # initialize same padder
-        x = self.pad(x, axes=axes)
+        if separable_pad:
+            self._adapt_padder(x, axes=axes)
+        else:
+            x = self.pad(x, axes=axes)
 
         for i, axis in enumerate(axes):
             if self.kernel_size[i] == 0:
                 continue
+
+            if separable_pad:
+                x = self.same_padder.pad_axis(x, i=i, axis=axis)
 
             # x = any_conv_1d(x, kernel[i], dim=axis, stride=self.stride[i], dilation=1)
             x = x.unfold(axis, size=self.kernel_size[i], step=self.stride[i]) @ kernel[i]
